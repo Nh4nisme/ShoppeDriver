@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Logistics Dispatch Map</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDummy&callback=initMap" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .info-window {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let markers = {};
+        let routes = {};
+
+        function initMap() {
+            // Initialize map centered on a default location
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 10,
+                center: { lat: 50, lng: 50 },
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                streetViewControl: false
+            });
+            console.log('Map initialized');
+        }
+
+        function updateMap(data) {
+            try {
+                const mapData = JSON.parse(data);
+
+                // Update shippers
+                if (mapData.shippers) {
+                    updateShippers(mapData.shippers);
+                }
+
+                // Update orders
+                if (mapData.orders) {
+                    updateOrders(mapData.orders);
+                }
+
+                // Update map bounds
+                if (mapData.bounds) {
+                    const bounds = new google.maps.LatLngBounds(
+                        { lat: mapData.bounds.minY, lng: mapData.bounds.minX },
+                        { lat: mapData.bounds.maxY, lng: mapData.bounds.maxX }
+                    );
+                    map.fitBounds(bounds);
+                }
+            } catch(e) {
+                console.error('Error updating map:', e);
+            }
+        }
+
+        function updateShippers(shippers) {
+            shippers.forEach(function(shipper) {
+                const position = { lat: shipper.y, lng: shipper.x };
+                const title = shipper.name + ' (' + shipper.status + ')';
+
+                if (markers[shipper.id]) {
+                    markers[shipper.id].setPosition(position);
+                    markers[shipper.id].setTitle(title);
+                } else {
+                    const marker = new google.maps.Marker({
+                        position: position,
+                        map: map,
+                        title: title,
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                        label: shipper.name.charAt(0)
+                    });
+                    markers[shipper.id] = marker;
+                }
+            });
+        }
+
+        function updateOrders(orders) {
+            orders.forEach(function(order) {
+                const position = { lat: order.y, lng: order.x };
+                const title = order.id + ' (' + order.status + ')';
+
+                let iconColor = 'red';
+                if (order.status === 'DONE') {
+                    iconColor = 'green';
+                } else if (order.status === 'IN_DELIVERY') {
+                    iconColor = 'yellow';
+                }
+
+                if (markers[order.id]) {
+                    markers[order.id].setPosition(position);
+                    markers[order.id].setTitle(title);
+                    markers[order.id].setIcon('http://maps.google.com/mapfiles/ms/icons/' + iconColor + '-dot.png');
+                } else {
+                    const marker = new google.maps.Marker({
+                        position: position,
+                        map: map,
+                        title: title,
+                        icon: 'http://maps.google.com/mapfiles/ms/icons/' + iconColor + '-dot.png'
+                    });
+                    markers[order.id] = marker;
+                }
+            });
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            if (typeof initMap === 'function') {
+                initMap();
+            }
+        });
+    </script>
+</body>
+</html>
+
