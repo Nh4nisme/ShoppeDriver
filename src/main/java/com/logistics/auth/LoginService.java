@@ -21,13 +21,13 @@ public class LoginService {
      * @return true if authentication successful
      */
     public boolean authenticate(String username, String password) {
-        Logger.log("AUTH", "Bắt đầu đăng nhập: " + username);
+        Logger.log("AUTH", "Bat dau dang nhap: " + username);
 
         try {
             User user = authRepository.findByUsername(username);
 
             if (user == null) {
-                Logger.log("AUTH", "Đăng nhập thất bại: User không tồn tại");
+                Logger.log("AUTH", "Dang nhap that bai: User khong ton tai");
                 return false;
             }
 
@@ -37,15 +37,15 @@ public class LoginService {
 
             if (passwordValid) {
                 SessionManager.getInstance().login(user);
-                Logger.log("AUTH", "Đăng nhập thành công cho user: " + username);
+                Logger.log("AUTH", "Dang nhap thanh cong cho user: " + username);
                 return true;
             } else {
-                Logger.log("AUTH", "Đăng nhập thất bại: Sai mật khẩu");
+                Logger.log("AUTH", "Dang nhap that bai: Sai mat khau");
                 return false;
             }
 
         } catch (Exception e) {
-            Logger.error("AUTH", "Lỗi đăng nhập: " + e.getMessage());
+            Logger.error("AUTH", "Loi dang nhap: " + e.getMessage());
             return false;
         }
     }
@@ -56,7 +56,7 @@ public class LoginService {
     public void logout() {
         User currentUser = SessionManager.getInstance().getCurrentUser();
         if (currentUser != null) {
-            Logger.log("AUTH", "Đăng xuất user: " + currentUser.getUsername());
+            Logger.log("AUTH", "Dang xuat user: " + currentUser.getUsername());
         }
         SessionManager.getInstance().logout();
     }
@@ -65,7 +65,7 @@ public class LoginService {
      * Initialize default admin user
      */
     public void initializeDefaultAdmin() {
-        Logger.log("AUTH", "Khởi tạo admin mặc định");
+        Logger.log("AUTH", "Khoi tao admin mac dinh");
         authRepository.createDefaultAdmin();
     }
 }

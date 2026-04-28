@@ -16,6 +16,7 @@ public class ShipperRepository {
 
     /**
      * Find all shippers
+     *
      * @return list of all shippers
      */
     public List<Shipper> findAll() {
@@ -50,6 +51,7 @@ public class ShipperRepository {
 
     /**
      * Find shipper by ID
+     *
      * @param shipperId the shipper ID
      * @return Shipper object or null
      */
@@ -82,6 +84,7 @@ public class ShipperRepository {
 
     /**
      * Find available shippers (not busy)
+     *
      * @return list of available shippers
      */
     public List<Shipper> findAvailable() {
@@ -116,9 +119,10 @@ public class ShipperRepository {
 
     /**
      * Update shipper location
+     *
      * @param shipperId the shipper ID
-     * @param x new X coordinate
-     * @param y new Y coordinate
+     * @param x         new X coordinate
+     * @param y         new Y coordinate
      * @return true if update successful
      */
     public boolean updateLocation(int shipperId, double x, double y) {
@@ -147,8 +151,9 @@ public class ShipperRepository {
 
     /**
      * Update shipper status
+     *
      * @param shipperId the shipper ID
-     * @param status the new status
+     * @param status    the new status
      * @return true if update successful
      */
     public boolean updateStatus(int shipperId, ShipperStatus status) {
@@ -203,22 +208,25 @@ public class ShipperRepository {
     }
 
     private void createShipper(String name) {
-        String shipperId = "S" + String.format("%03d", (int)(Math.random() * 1000));
-        String sql = "INSERT INTO shippers (id, name, status, location_x, location_y) VALUES (?, ?, 'AVAILABLE', ?, ?)";
+        String sql = "INSERT INTO shipper (id, name, current_x, current_y, status, active) VALUES (?, ?, ?, ?, 'IDLE', TRUE)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            // Random starting location
-            double x = Math.random() * 20 + 40; // 40-60
-            double y = Math.random() * 20 + 40; // 40-60
+            // ID là INT theo DB → phải random số
+            int shipperId = (int) (Math.random() * 1000);
 
-            stmt.setString(1, shipperId);
+            // Random vị trí
+            double x = Math.random() * 20 + 40; // 40-60
+            double y = Math.random() * 20 + 40;
+
+            stmt.setInt(1, shipperId);
             stmt.setString(2, name);
             stmt.setDouble(3, x);
             stmt.setDouble(4, y);
 
             stmt.executeUpdate();
+
             Logger.log("SHIPPER", "Tạo shipper: " + name + " (ID: " + shipperId + ")");
 
         } catch (SQLException e) {

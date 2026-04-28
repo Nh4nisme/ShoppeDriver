@@ -1,0 +1,38 @@
+-- ShoppeDriver Database Schema (MariaDB)
+
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE shipper (
+    id INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    current_x DOUBLE DEFAULT 0,
+    current_y DOUBLE DEFAULT 0,
+    status ENUM('IDLE', 'IN_DELIVERY', 'ON_BREAK', 'OFFLINE', 'BUSY', 'AVAILABLE') DEFAULT 'IDLE',
+    active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE batch (
+    id INT PRIMARY KEY,
+    shipper_id INT,
+    status ENUM('PENDING', 'ASSIGNED', 'IN_DELIVERY', 'COMPLETED', 'FAILED', 'CREATED') DEFAULT 'PENDING',
+    FOREIGN KEY (shipper_id) REFERENCES shipper(id)
+);
+
+CREATE TABLE orders (
+    id INT PRIMARY KEY,
+    x DOUBLE NOT NULL,
+    y DOUBLE NOT NULL,
+    customer_name VARCHAR(100),
+    address TEXT NOT NULL,
+    phone VARCHAR(20),
+    status ENUM('PENDING', 'IN_BATCH', 'DELIVERING', 'COMPLETED', 'FAILED') DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    batch_id INT,
+    FOREIGN KEY (batch_id) REFERENCES batch(id)
+);
+

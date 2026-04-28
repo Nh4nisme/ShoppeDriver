@@ -21,7 +21,7 @@ public class AuthRepository {
      */
     public User findByUsername(String username) {
         String sql = "SELECT id, username, password, role FROM users WHERE username = ?";
-        Logger.log("DATABASE", "Thực thi query: " + sql);
+        Logger.log("DATABASE", "Thuc thi query: " + sql);
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -35,15 +35,15 @@ public class AuthRepository {
                 user.setUsername(rs.getString("username"));
                 user.setPassword(rs.getString("password"));
                 user.setRole(rs.getString("role"));
-                Logger.log("DATABASE", "Tìm thấy user: " + username);
+                Logger.log("DATABASE", "Tim thay user: " + username);
                 return user;
             } else {
-                Logger.log("DATABASE", "Không tìm thấy user: " + username);
+                Logger.log("DATABASE", "Khong tim thay user: " + username);
                 return null;
             }
 
         } catch (SQLException e) {
-            Logger.log("DATABASE", "Lỗi database khi tìm user: " + e.getMessage());
+            Logger.log("DATABASE", "Loi database khi tim user: " + e.getMessage());
             return null;
         }
     }
@@ -54,12 +54,12 @@ public class AuthRepository {
     public void createDefaultAdmin() {
         // Check if admin exists
         if (findByUsername("admin") != null) {
-            Logger.log("DATABASE", "Admin user đã tồn tại");
+            Logger.log("DATABASE", "Admin user da ton tai");
             return;
         }
 
-        String sql = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)";
-        Logger.log("DATABASE", "Tạo admin user mặc định");
+        String sql = "INSERT INTO users (id, username, password, role) VALUES (?, ?, ?, ?)";
+        Logger.log("DATABASE", "Tao admin user mac dinh");
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -68,17 +68,18 @@ public class AuthRepository {
             String hashedPassword = at.favre.lib.crypto.bcrypt.BCrypt.withDefaults()
                     .hashToString(12, "admin123".toCharArray());
 
-            stmt.setString(1, "admin");
-            stmt.setString(2, hashedPassword);
-            stmt.setString(3, "ADMIN");
+            stmt.setInt(1, 1); // id
+            stmt.setString(2, "admin"); // username
+            stmt.setString(3, hashedPassword);
+            stmt.setString(4, "ADMIN");
 
             int rows = stmt.executeUpdate();
             if (rows > 0) {
-                Logger.log("DATABASE", "Tạo admin user thành công");
+                Logger.log("DATABASE", "Tao admin user thanh cong");
             }
 
         } catch (SQLException e) {
-            Logger.log("DATABASE", "Lỗi tạo admin user: " + e.getMessage());
+            Logger.log("DATABASE", "Loi tao admin user: " + e.getMessage());
         }
     }
 }
