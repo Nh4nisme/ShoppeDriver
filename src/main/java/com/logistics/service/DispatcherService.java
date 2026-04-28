@@ -28,32 +28,12 @@ public class DispatcherService implements Runnable {
     @Override
     public void run() {
         running = true;
-        Logger.log("SERVICE", "DispatcherService bắt đầu chạy");
+        Logger.log("SERVICE", "DispatcherService bắt đầu chạy (User-Driven Mode)");
 
         try {
+            // Keep service running but wait for manual batch assignment
             while (running) {
-                // Poll for created batches every 2-5 seconds
-                Thread.sleep(2000 + (int)(Math.random() * 3000));
-
-                List<Batch> createdBatches = batchRepository.findByStatus(BatchStatus.CREATED);
-
-                for (Batch batch : createdBatches) {
-                    // Find nearest available shipper
-                    Shipper nearestShipper = findNearestAvailableShipper(batch);
-                    if (nearestShipper != null) {
-                        // Assign batch to shipper
-                        batch.setStatus(BatchStatus.ASSIGNED);
-                        batch.setShipperId(nearestShipper.getId());
-
-                        // Update batch in database
-                        batchRepository.updateStatus(batch.getId(), BatchStatus.ASSIGNED);
-
-                        // Update shipper status to BUSY
-                        shipperRepository.updateStatus(nearestShipper.getId(), ShipperStatus.BUSY);
-
-                        Logger.log("DISPATCH", "Gán batch " + batch.getId() + " → shipper " + nearestShipper.getName());
-                    }
-                }
+                Thread.sleep(10000); // Keep alive, no automatic dispatch
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -62,6 +42,47 @@ public class DispatcherService implements Runnable {
             running = false;
             Logger.log("SERVICE", "DispatcherService dừng");
         }
+    }
+
+    /**
+     * Manually assign batch to shipper (User-Driven)
+     * @param batchId Batch ID
+     * @param shipperId Shipper ID
+     * @return Success status
+     */
+    public boolean assignBatchToShipper(int batchId, int shipperId) {
+        Logger.log("DISPATCH", "Gán batch " + batchId + " cho shipper " + shipperId);
+
+        try {
+            // Update batch status and shipper ID
+            batchRepository.updateStatus(batchId, BatchStatus.ASSIGNED);
+
+            // Get batch to set shipper ID
+            List<Batch> batches = batchRepository.findByStatus(BatchStatus.CREATED);
+            for (Batch batch : batches) {
+                if (batch.getId() == batchId) {
+                    batch.setShipperId(shipperId);
+                    break;
+                }
+            }
+
+            // Update shipper status to BUSY
+            shipperRepository.updateStatus(shipperId, ShipperStatus.BUSY);
+
+            Logger.log("DISPATCH", "Gán batch " + batchId + " → shipper " + shipperId + " thành công");
+            return true;
+
+        } catch (Exception e) {
+            Logger.error("DISPATCH", "Lỗi gán batch: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get all available shippers
+     */
+    public List<Shipper> getAvailableShippers() {
+        return shipperRepository.findAvailable();
     }
 
     private Shipper findNearestAvailableShipper(Batch batch) {

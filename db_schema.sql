@@ -7,7 +7,7 @@ CREATE TABLE users (
     role VARCHAR(20) NOT NULL
 );
 
-CREATE TABLE shipper (
+CREATE TABLE shippers (
     id INT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     current_x DOUBLE DEFAULT 0,
@@ -20,7 +20,7 @@ CREATE TABLE batch (
     id INT PRIMARY KEY,
     shipper_id INT,
     status ENUM('PENDING', 'ASSIGNED', 'IN_DELIVERY', 'COMPLETED', 'FAILED', 'CREATED') DEFAULT 'PENDING',
-    FOREIGN KEY (shipper_id) REFERENCES shipper(id)
+    FOREIGN KEY (shipper_id) REFERENCES shippers(id)
 );
 
 CREATE TABLE orders (
@@ -35,4 +35,7 @@ CREATE TABLE orders (
     batch_id INT,
     FOREIGN KEY (batch_id) REFERENCES batch(id)
 );
-
+ALTER TABLE users MODIFY id INT AUTO_INCREMENT;
+ALTER TABLE shippers MODIFY id INT AUTO_INCREMENT;
+ALTER TABLE batch MODIFY id INT AUTO_INCREMENT;
+ALTER TABLE orders MODIFY id INT AUTO_INCREMENT;

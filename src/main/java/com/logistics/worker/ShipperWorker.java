@@ -86,7 +86,7 @@ public class ShipperWorker implements Runnable {
         if (currentOrder != null) {
             // Move directly to the order and mark as done
             shipper.distanceTo(currentOrder.getX(), currentOrder.getY());
-            currentOrder.setStatus(OrderStatus.DONE);
+            currentOrder.setStatus(OrderStatus.COMPLETED);
             System.out.println("[ShipperWorker-" + shipper.getName() + "] Delivered: " + currentOrder);
             
             ShipperTrackingService.getInstance().updateShipperLocation(shipper.getId(), currentOrder.getX(), currentOrder.getY());
@@ -111,7 +111,7 @@ public class ShipperWorker implements Runnable {
 
             if (LocationUtil.isCloseEnough(currentX, currentY, orderX, orderY)) {
                 // Reached order
-                currentOrder.setStatus(OrderStatus.DONE);
+                currentOrder.setStatus(OrderStatus.COMPLETED);
                 System.out.println("[ShipperWorker-" + shipper.getName() + "] Delivered: " + currentOrder);
                 currentOrder = null;
 
