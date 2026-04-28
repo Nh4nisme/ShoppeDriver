@@ -87,18 +87,18 @@ public class LoginView {
         String password = passwordField.getText();
 
         if (username.isEmpty() || password.isEmpty()) {
-            statusLabel.setText("Vui lòng nhập đầy đủ thông tin!");
+            statusLabel.setText("Vui long nhap day du thong tin!");
             return;
         }
 
-        statusLabel.setText("Đang xác thực...");
+        statusLabel.setText("Dang xac thuc...");
         loginButton.setDisable(true);
 
         // Perform authentication
         boolean success = loginService.authenticate(username, password);
 
         if (success) {
-            statusLabel.setText("Đăng nhập thành công!");
+            statusLabel.setText("Dang nhap thanh cong!");
             statusLabel.setStyle("-fx-text-fill: green;");
             // Close dialog after short delay
             new Thread(() -> {
@@ -110,7 +110,7 @@ public class LoginView {
                 }
             }).start();
         } else {
-            statusLabel.setText("Tên đăng nhập hoặc mật khẩu không đúng!");
+            statusLabel.setText("Ten dang nhap hoac mat khau khong dung!");
             statusLabel.setStyle("-fx-text-fill: red;");
             loginButton.setDisable(false);
         }

@@ -1,0 +1,30 @@
+SHOPPEDRIVER - BAO CAO SUA LOI DANG NHAP & TAO FILE SQL
+
+1. SUA LOI DANG NHAP & CHUAN HOA LOG
+- Tat ca log va thong bao trang thai lien quan den dang nhap da duoc chuan hoa sang tieng Viet khong dau.
+- Da dam bao viec so sanh mat khau dung BCrypt, tra ve ket qua dung.
+- Thong bao tren giao dien va log deu khong dau, de de doc va tim kiem.
+
+2. FILE SQL TAO BANG
+- Da tao file db_schema.sql gom cac bang: users, shipper, batch, orders.
+- Bang orders duoc bo sung cac truong: customer_name, address, phone, status (ENUM), created_at (TIMESTAMP), batch_id (khoa ngoai).
+- Cac bang co khoa ngoai dung theo yeu cau, khong tao chi muc rieng.
+
+3. SUA DATABASEINITIALIZER
+- Da loai bo viec tu dong tao bang trong DatabaseInitializer.initialize().
+- Chi giu lai tao du lieu mac dinh (admin va shipper).
+- Su dung ket noi DB truc tiep tu MariaDB, khong tu tao schema.
+
+4. CAC FILE DA CHINH SUA
+- src/main/java/com/logistics/util/Logger.java: Them ham bo dau, chuan hoa log.
+- src/main/java/com/logistics/auth/LoginService.java: Chuan hoa log, thong bao khong dau.
+- src/main/java/com/logistics/auth/LoginView.java: Chuan hoa thong bao giao dien khong dau.
+- src/main/java/com/logistics/repository/AuthRepository.java: Chuan hoa log, thong bao khong dau.
+- src/main/java/com/logistics/db/DatabaseInitializer.java: Loai bo createTables(), chi tao du lieu mac dinh.
+- db_schema.sql: File tao bang co cac truong va khoa ngoai dung nhu code.
+
+5. HUONG DAN
+- Import db_schema.sql vao MariaDB truoc khi chay chuong trinh.
+- Neu co loi lien quan den mat khau admin, xoa user admin va de chuong trinh tu tao lai.
+
+DA HOAN THANH SUA LOI VA TAO FILE SQL.
