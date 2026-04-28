@@ -12,12 +12,17 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RouteBuilderService implements Runnable {
+
     private static final RouteBuilderService instance = new RouteBuilderService();
+
     private volatile boolean running = false;
+
     private final int BATCH_SIZE_MIN = 3;
     private final int BATCH_SIZE_MAX = 5;
+
     private final OrderRepository orderRepository;
     private final BatchRepository batchRepository;
+
     private final AtomicInteger batchCounter = new AtomicInteger(0);
 
     private RouteBuilderService() {
@@ -32,51 +37,74 @@ public class RouteBuilderService implements Runnable {
     @Override
     public void run() {
         running = true;
-        Logger.log("SERVICE", "RouteBuilderService bắt đầu chạy");
+        Logger.log("SERVICE", "RouteBuilderService bắt đầu chạy (User-Driven Mode)");
 
         try {
+            // Keep service running but wait for manual batch creation requests
             while (running) {
-                // Poll for pending orders every 2-5 seconds
-                Thread.sleep(2000 + (int)(Math.random() * 3000));
-
-                List<Order> pendingOrders = orderRepository.findByStatus(OrderStatus.PENDING);
-
-                if (pendingOrders.size() >= BATCH_SIZE_MIN) {
-                    // Take up to BATCH_SIZE_MAX orders
-                    List<Order> batchOrders = pendingOrders.subList(0,
-                        Math.min(BATCH_SIZE_MAX, pendingOrders.size()));
-
-                    // Sort by nearest neighbor
-                    List<Order> sortedOrders = sortByNearestNeighbor(batchOrders);
-
-                    // Create batch
-                    Batch batch = new Batch();
-                    batch.setStatus(BatchStatus.CREATED);
-                    for (Order order : sortedOrders) {
-                        batch.addOrder(order);
-                    }
-
-                    // Save batch to database
-                    Batch savedBatch = batchRepository.save(batch);
-                    if (savedBatch != null) {
-                        // Save batch-order relationships
-                        List<Integer> orderIds = sortedOrders.stream()
-                            .map(Order::getId)
-                            .toList();
-                        batchRepository.saveBatchOrders(savedBatch.getId(), orderIds);
-
-                        Logger.log("BATCH", "Tạo batch: ID=" + savedBatch.getId() + ", số đơn=" + sortedOrders.size());
-                    }
-                }
+                Thread.sleep(10000); // Keep alive, no automatic batch creation
             }
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             Logger.log("SERVICE", "RouteBuilderService bị ngắt");
+
         } finally {
             running = false;
             Logger.log("SERVICE", "RouteBuilderService dừng");
         }
     }
+
+    /**
+     * Create batch from route coordinates (User-Driven)
+     * @param startX Starting point X coordinate
+     * @param startY Starting point Y coordinate
+     * @param endX Ending point X coordinate
+     * @param endY Ending point Y coordinate
+     * @param maxBatchSize Maximum number of orders in batch
+     * @return Created batch with filtered orders
+     */
+    public Batch createBatchFromRoute(double startX, double startY, double endX, double endY, int maxBatchSize) {
+        Logger.log("BATCH", "Tạo batch từ route: (" + startX + "," + startY + ") → (" + endX + "," + endY + ")");
+
+        // Get orders within bounding box
+        List<Order> filteredOrders = orderRepository.findOrdersInBoundingBox(startX, startY, endX, endY, maxBatchSize);
+
+        if (filteredOrders.isEmpty()) {
+            Logger.log("BATCH", "Không tìm thấy đơn hàng trong vùng chỉ định");
+            return null;
+        }
+
+        // Sort by nearest neighbor
+        List<Order> sortedOrders = sortByNearestNeighbor(filteredOrders);
+
+        // Create batch
+        Batch batch = new Batch();
+        batch.setStatus(BatchStatus.CREATED);
+
+        Batch savedBatch = batchRepository.save(batch);
+
+        if (savedBatch != null) {
+            // Assign orders to batch
+            for (Order order : sortedOrders) {
+                boolean assigned = orderRepository.assignToBatch(order.getId(), savedBatch.getId());
+                if (assigned) {
+                    Logger.log("BATCH", "Gán order " + order.getId() + " vào batch " + savedBatch.getId());
+                } else {
+                    Logger.error("BATCH", "Gán order thất bại: " + order.getId());
+                }
+            }
+
+            Logger.log("BATCH", "Tạo batch: ID=" + savedBatch.getId() + ", số đơn=" + sortedOrders.size());
+            return savedBatch;
+        }
+
+        return null;
+    }
+
+    // ============================
+    // ROUTE LOGIC
+    // ============================
 
     private List<Order> sortByNearestNeighbor(List<Order> orders) {
         List<Order> sorted = new ArrayList<>();
@@ -84,7 +112,6 @@ public class RouteBuilderService implements Runnable {
 
         if (remaining.isEmpty()) return sorted;
 
-        // Start from a central point
         Order current = remaining.remove(0);
         sorted.add(current);
 

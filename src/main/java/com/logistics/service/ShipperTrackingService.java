@@ -70,7 +70,7 @@ public class ShipperTrackingService {
     /**
      * Get shipper by ID
      */
-    public Shipper getShipper(String shipperId) {
+    public Shipper getShipper(int shipperId) {
         return shipperRepository.findById(shipperId);
     }
 
@@ -101,10 +101,10 @@ public class ShipperTrackingService {
     /**
      * Get batches assigned to a specific shipper
      */
-    public List<Batch> getBatchesForShipper(String shipperId) {
+    public List<Batch> getBatchesForShipper(int shipperId) {
         List<Batch> allBatches = batchRepository.findByStatus(BatchStatus.ASSIGNED);
         return allBatches.stream()
-                .filter(batch -> shipperId.equals(batch.getShipperId()))
+                .filter(batch -> batch.getShipperId() == shipperId)
                 .toList();
     }
 

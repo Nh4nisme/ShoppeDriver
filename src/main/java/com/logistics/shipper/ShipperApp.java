@@ -27,7 +27,7 @@ import java.util.List;
  * Run with: java -cp target/classes --module-path /path/to/javafx/lib --add-modules javafx.controls,javafx.fxml com.logistics.shipper.ShipperApp <shipperId>
  */
 public class ShipperApp extends Application {
-    private String shipperId;
+    private int shipperId;
     private String shipperName;
     private BatchRepository batchRepository;
     private OrderRepository orderRepository;
@@ -58,7 +58,7 @@ public class ShipperApp extends Application {
             return;
         }
 
-        this.shipperId = args.get(0);
+        this.shipperId = Integer.parseInt(args.get(0));
 
         try {
             // Initialize database
@@ -231,7 +231,7 @@ public class ShipperApp extends Application {
         Order currentOrder = currentOrders.get(currentOrderIndex);
 
         // Mark order as done
-        orderRepository.updateStatus(currentOrder.getId(), OrderStatus.DONE);
+        orderRepository.updateStatus(currentOrder.getId(), OrderStatus.COMPLETED);
 
         Logger.log("SHIPPER", "Hoàn thành đơn " + currentOrder.getId());
 
@@ -259,7 +259,7 @@ public class ShipperApp extends Application {
         batchRepository.updateStatus(currentBatch.getId(), BatchStatus.COMPLETED);
 
         // Update shipper status to AVAILABLE
-        shipperRepository.updateStatus(Integer.parseInt(shipperId), com.logistics.model.ShipperStatus.AVAILABLE);
+        shipperRepository.updateStatus(shipperId, com.logistics.model.ShipperStatus.AVAILABLE);
 
         // Update UI
         deliverNextButton.setDisable(true);

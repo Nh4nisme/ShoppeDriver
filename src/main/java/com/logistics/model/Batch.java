@@ -59,7 +59,7 @@ public class Batch implements Serializable {
 
     public int getDeliveredCount() {
         return (int) orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.DONE)
+                .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
                 .count();
     }
 

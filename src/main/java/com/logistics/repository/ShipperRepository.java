@@ -9,18 +9,10 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Repository for shipper operations
- */
 public class ShipperRepository {
 
-    /**
-     * Find all shippers
-     *
-     * @return list of all shippers
-     */
     public List<Shipper> findAll() {
-        String sql = "SELECT id, name, status, location_x, location_y FROM shippers ORDER BY id";
+        String sql = "SELECT id, name, status, current_x, current_y FROM shippers ORDER BY id";
         Logger.log("DATABASE", "Thực thi query: " + sql);
 
         List<Shipper> shippers = new ArrayList<>();
@@ -35,8 +27,8 @@ public class ShipperRepository {
                 shipper.setId(rs.getInt("id"));
                 shipper.setName(rs.getString("name"));
                 shipper.setStatus(ShipperStatus.valueOf(rs.getString("status")));
-                shipper.setCurrentX(rs.getDouble("location_x"));
-                shipper.setCurrentY(rs.getDouble("location_y"));
+                shipper.setCurrentX(rs.getDouble("current_x"));
+                shipper.setCurrentY(rs.getDouble("current_y"));
                 shippers.add(shipper);
             }
 
@@ -49,20 +41,14 @@ public class ShipperRepository {
         return shippers;
     }
 
-    /**
-     * Find shipper by ID
-     *
-     * @param shipperId the shipper ID
-     * @return Shipper object or null
-     */
-    public Shipper findById(String shipperId) {
-        String sql = "SELECT id, name, status, location_x, location_y FROM shippers WHERE id = ?";
+    public Shipper findById(int shipperId) {
+        String sql = "SELECT id, name, status, current_x, current_y FROM shippers WHERE id = ?";
         Logger.log("DATABASE", "Thực thi query: " + sql);
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, shipperId);
+            stmt.setInt(1, shipperId);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
@@ -70,8 +56,8 @@ public class ShipperRepository {
                 shipper.setId(rs.getInt("id"));
                 shipper.setName(rs.getString("name"));
                 shipper.setStatus(ShipperStatus.valueOf(rs.getString("status")));
-                shipper.setCurrentX(rs.getDouble("location_x"));
-                shipper.setCurrentY(rs.getDouble("location_y"));
+                shipper.setCurrentX(rs.getDouble("current_x"));
+                shipper.setCurrentY(rs.getDouble("current_y"));
                 return shipper;
             }
 
@@ -82,13 +68,8 @@ public class ShipperRepository {
         return null;
     }
 
-    /**
-     * Find available shippers (not busy)
-     *
-     * @return list of available shippers
-     */
     public List<Shipper> findAvailable() {
-        String sql = "SELECT id, name, status, location_x, location_y FROM shippers WHERE status != 'BUSY' ORDER BY id";
+        String sql = "SELECT id, name, status, current_x, current_y FROM shippers WHERE status != 'BUSY' ORDER BY id";
         Logger.log("DATABASE", "Thực thi query: " + sql);
 
         List<Shipper> shippers = new ArrayList<>();
@@ -103,12 +84,10 @@ public class ShipperRepository {
                 shipper.setId(rs.getInt("id"));
                 shipper.setName(rs.getString("name"));
                 shipper.setStatus(ShipperStatus.valueOf(rs.getString("status")));
-                shipper.setCurrentX(rs.getDouble("location_x"));
-                shipper.setCurrentY(rs.getDouble("location_y"));
+                shipper.setCurrentX(rs.getDouble("current_x"));
+                shipper.setCurrentY(rs.getDouble("current_y"));
                 shippers.add(shipper);
             }
-
-            Logger.log("SHIPPER", "Tìm thấy " + shippers.size() + " shipper khả dụng");
 
         } catch (SQLException e) {
             Logger.error("DATABASE", "Lỗi tìm shipper khả dụng: " + e.getMessage());
@@ -117,16 +96,8 @@ public class ShipperRepository {
         return shippers;
     }
 
-    /**
-     * Update shipper location
-     *
-     * @param shipperId the shipper ID
-     * @param x         new X coordinate
-     * @param y         new Y coordinate
-     * @return true if update successful
-     */
     public boolean updateLocation(int shipperId, double x, double y) {
-        String sql = "UPDATE shippers SET location_x = ?, location_y = ? WHERE id = ?";
+        String sql = "UPDATE shippers SET current_x = ?, current_y = ? WHERE id = ?";
         Logger.log("DATABASE", "Thực thi query: " + sql);
 
         try (Connection conn = DBConnection.getConnection();
@@ -137,11 +108,7 @@ public class ShipperRepository {
             stmt.setInt(3, shipperId);
 
             int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                Logger.log("SHIPPER", "Cập nhật vị trí shipper " + shipperId + " → (" + x + "," + y + ")");
-                return true;
-            }
-            return false;
+            return rows > 0;
 
         } catch (SQLException e) {
             Logger.error("DATABASE", "Lỗi cập nhật vị trí shipper: " + e.getMessage());
@@ -149,13 +116,6 @@ public class ShipperRepository {
         }
     }
 
-    /**
-     * Update shipper status
-     *
-     * @param shipperId the shipper ID
-     * @param status    the new status
-     * @return true if update successful
-     */
     public boolean updateStatus(int shipperId, ShipperStatus status) {
         String sql = "UPDATE shippers SET status = ? WHERE id = ?";
         Logger.log("DATABASE", "Thực thi query: " + sql);
@@ -167,11 +127,7 @@ public class ShipperRepository {
             stmt.setInt(2, shipperId);
 
             int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                Logger.log("SHIPPER", "Cập nhật trạng thái shipper " + shipperId + " → " + status);
-                return true;
-            }
-            return false;
+            return rows > 0;
 
         } catch (SQLException e) {
             Logger.error("DATABASE", "Lỗi cập nhật trạng thái shipper: " + e.getMessage());
@@ -179,13 +135,10 @@ public class ShipperRepository {
         }
     }
 
-    /**
-     * Create default shippers if not exist
-     */
     public void createDefaultShippers() {
-        String[] shipperNames = {"Alice", "Bob", "Charlie", "Diana"};
+        String[] names = {"Alice", "Bob", "Charlie", "Diana"};
 
-        for (String name : shipperNames) {
+        for (String name : names) {
             if (!shipperExists(name)) {
                 createShipper(name);
             }
@@ -208,26 +161,21 @@ public class ShipperRepository {
     }
 
     private void createShipper(String name) {
-        String sql = "INSERT INTO shipper (id, name, current_x, current_y, status, active) VALUES (?, ?, ?, ?, 'IDLE', TRUE)";
+        String sql = "INSERT INTO shippers (id, name, current_x, current_y, status, active) VALUES (?, ?, ?, ?, 'IDLE', TRUE)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            // ID là INT theo DB → phải random số
-            int shipperId = (int) (Math.random() * 1000);
-
-            // Random vị trí
-            double x = Math.random() * 20 + 40; // 40-60
+            int id = (int) (Math.random() * 1000);
+            double x = Math.random() * 20 + 40;
             double y = Math.random() * 20 + 40;
 
-            stmt.setInt(1, shipperId);
+            stmt.setInt(1, id);
             stmt.setString(2, name);
             stmt.setDouble(3, x);
             stmt.setDouble(4, y);
 
             stmt.executeUpdate();
-
-            Logger.log("SHIPPER", "Tạo shipper: " + name + " (ID: " + shipperId + ")");
 
         } catch (SQLException e) {
             Logger.error("DATABASE", "Lỗi tạo shipper: " + e.getMessage());
