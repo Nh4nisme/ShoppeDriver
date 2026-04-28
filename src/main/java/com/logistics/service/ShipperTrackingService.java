@@ -8,7 +8,8 @@ import com.logistics.repository.ShipperRepository;
 import com.logistics.util.DataChangeListener;
 import com.logistics.util.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ShipperTrackingService {
@@ -28,20 +29,15 @@ public class ShipperTrackingService {
         return instance;
     }
 
-    /**
-     * Start the tracking service
-     */
     public void start() {
         running = true;
-        Logger.log("SERVICE", "ShipperTrackingService bắt đầu chạy");
+        Logger.log("SERVICE", "ShipperTrackingService bat dau chay");
 
-        // Start background polling thread
         Thread pollingThread = new Thread(() -> {
             while (running) {
                 try {
-                    // Poll every 2 seconds for updates
                     Thread.sleep(2000);
-                    notifyListeners(); // Notify UI of potential changes
+                    notifyListeners();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -52,98 +48,74 @@ public class ShipperTrackingService {
         pollingThread.start();
     }
 
-    /**
-     * Stop the tracking service
-     */
     public void stop() {
         running = false;
-        Logger.log("SERVICE", "ShipperTrackingService dừng");
+        Logger.log("SERVICE", "ShipperTrackingService dung");
     }
 
-    /**
-     * Get all shippers from database
-     */
     public List<Shipper> getAllShippers() {
         return shipperRepository.findAll();
     }
 
-    /**
-     * Get shipper by ID
-     */
     public Shipper getShipper(int shipperId) {
         return shipperRepository.findById(shipperId);
     }
 
-    /**
-     * Update shipper location in database
-     */
     public void updateShipperLocation(int shipperId, double x, double y) {
         shipperRepository.updateLocation(shipperId, x, y);
-        Logger.log("TRACKING", "Cập nhật vị trí shipper " + shipperId + " → (" + x + "," + y + ")");
+        Logger.log("TRACKING", "Cap nhat vi tri shipper " + shipperId + " -> (" + x + "," + y + ")");
         notifyListeners();
     }
 
-    /**
-     * Get all batches from database
-     */
     public List<Batch> getAllBatches() {
-        return batchRepository.findByStatus(BatchStatus.ASSIGNED);
+        List<Batch> batches = new ArrayList<>();
+        batches.addAll(batchRepository.findByStatus(BatchStatus.CREATED));
+        batches.addAll(batchRepository.findByStatus(BatchStatus.ASSIGNED));
+        batches.addAll(batchRepository.findByStatus(BatchStatus.IN_DELIVERY));
+        batches.addAll(batchRepository.findByStatus(BatchStatus.COMPLETED));
+        return batches;
     }
 
-    /**
-     * Get batch by ID
-     */
     public Batch getBatch(int batchId) {
-        // This would need to be implemented in BatchRepository if needed
-        return null;
+        return batchRepository.findById(batchId);
     }
 
-    /**
-     * Get batches assigned to a specific shipper
-     */
     public List<Batch> getBatchesForShipper(int shipperId) {
-        List<Batch> allBatches = batchRepository.findByStatus(BatchStatus.ASSIGNED);
-        return allBatches.stream()
-                .filter(batch -> batch.getShipperId() == shipperId)
-                .toList();
+        return batchRepository.findActiveByShipper(shipperId);
     }
 
-    /**
-     * Add data change listener
-     */
+    public Batch getActiveBatchForShipper(int shipperId) {
+        return batchRepository.findActiveByShipper(shipperId).stream().findFirst().orElse(null);
+    }
+
     public void addListener(DataChangeListener listener) {
         if (!listeners.contains(listener)) {
             listeners.add(listener);
-            Logger.log("TRACKING", "Thêm listener: " + listener.getClass().getSimpleName());
+            Logger.log("TRACKING", "Them listener: " + listener.getClass().getSimpleName());
         }
     }
 
-    /**
-     * Remove data change listener
-     */
     public void removeListener(DataChangeListener listener) {
         listeners.remove(listener);
-        Logger.log("TRACKING", "Xóa listener: " + listener.getClass().getSimpleName());
+        Logger.log("TRACKING", "Xoa listener: " + listener.getClass().getSimpleName());
     }
 
-    /**
-     * Notify all listeners of data changes
-     */
+    public void refreshData() {
+        notifyListeners();
+    }
+
     private void notifyListeners() {
         listeners.forEach(listener -> {
             try {
                 listener.onDataChanged();
             } catch (Exception e) {
-                Logger.error("TRACKING", "Lỗi thông báo listener: " + e.getMessage());
+                Logger.error("TRACKING", "Loi thong bao listener: " + e.getMessage());
             }
         });
     }
 
-    /**
-     * clear listeners of data
-     */
     public void clearListeners() {
         listeners.clear();
-        Logger.log("TRACKING", "Đã clear tất cả listeners");
+        Logger.log("TRACKING", "Da clear tat ca listeners");
     }
 }
