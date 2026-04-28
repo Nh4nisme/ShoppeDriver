@@ -1,19 +1,19 @@
 package com.logistics.service;
 
 import com.logistics.model.Order;
-import com.logistics.util.QueueManager;
+import com.logistics.repository.OrderRepository;
+import com.logistics.util.Logger;
 
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class OrderService implements Runnable {
     private static final OrderService instance = new OrderService();
     private volatile boolean running = false;
-    private final BlockingQueue<Order> orderQueue;
+    private final OrderRepository orderRepository;
     private final AtomicInteger orderCounter = new AtomicInteger(0);
 
     private OrderService() {
-        this.orderQueue = QueueManager.getInstance().getOrderQueue();
+        this.orderRepository = new OrderRepository();
     }
 
     public static OrderService getInstance() {
@@ -23,7 +23,7 @@ public class OrderService implements Runnable {
     @Override
     public void run() {
         running = true;
-        System.out.println("[OrderService] Starting...");
+        Logger.log("SERVICE", "OrderService bắt đầu chạy");
 
         try {
             // Generate initial batch of orders
@@ -31,17 +31,17 @@ public class OrderService implements Runnable {
 
             // Periodically add new orders
             int count = 0;
-            while (running && count < 30) {
+            while (running && count < 10) {
                 Thread.sleep(5000); // Add orders every 5 seconds
                 generateMockOrders(2);
                 count++;
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("[OrderService] Interrupted!");
+            Logger.log("SERVICE", "OrderService bị ngắt");
         } finally {
             running = false;
-            System.out.println("[OrderService] Stopped!");
+            Logger.log("SERVICE", "OrderService dừng");
         }
     }
 
@@ -49,9 +49,9 @@ public class OrderService implements Runnable {
         for (int i = 0; i < count; i++) {
             double x = Math.random() * 100;
             double y = Math.random() * 100;
-            Order order = new Order("ORD-" + orderCounter.incrementAndGet(), x, y);
-            orderQueue.put(order);
-            System.out.println("[OrderService] Generated: " + order);
+            Order order = new Order(x, y);
+            orderRepository.save(order);
+            Logger.log("ORDER", "Tạo đơn hàng: ID=" + order.getId());
         }
     }
 
@@ -63,4 +63,3 @@ public class OrderService implements Runnable {
         return running;
     }
 }
-

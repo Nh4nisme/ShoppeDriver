@@ -49,7 +49,7 @@ public class OrderListPanel extends VBox implements DataChangeListener {
             orderRow.setPadding(new Insets(8));
             orderRow.setStyle("-fx-border-color: #dddddd; -fx-border-width: 1;");
 
-            Label idLabel = new Label(order.getId());
+            Label idLabel = new Label(String.valueOf(order.getId()));
             idLabel.setStyle("-fx-font-weight: bold; -fx-min-width: 100;");
 
             Label statusLabel = new Label(order.getStatus().getDisplayName());
@@ -75,7 +75,7 @@ public class OrderListPanel extends VBox implements DataChangeListener {
             Label currentLabel = new Label("CURRENT");
             currentLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #f39c12;");
 
-            Label idLabel = new Label(currentOrder.getId());
+            Label idLabel = new Label(String.valueOf(currentOrder.getId()));
             idLabel.setStyle("-fx-font-weight: bold;");
 
             currentOrderRow.getChildren().addAll(currentLabel, idLabel);

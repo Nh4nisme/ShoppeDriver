@@ -4,14 +4,14 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Shipper implements Serializable {
-    private final String id;
-    private final String name;
+    private int id;
+    private String name;
     private final AtomicReference<Double> currentX;
     private final AtomicReference<Double> currentY;
     private final AtomicReference<ShipperStatus> status;
     private volatile boolean active;
 
-    public Shipper(String id, String name, double startX, double startY) {
+    public Shipper(int id, String name, double startX, double startY) {
         this.id = id;
         this.name = name;
         this.currentX = new AtomicReference<>(startX);
@@ -20,25 +20,44 @@ public class Shipper implements Serializable {
         this.active = true;
     }
 
-    public String getId() {
+    public Shipper() {
+        this.id = 0;
+        this.name = null;
+        this.currentX = new AtomicReference<>(0.0);
+        this.currentY = new AtomicReference<>(0.0);
+        this.status = new AtomicReference<>(ShipperStatus.IDLE);
+    }
+
+    public int getId() {
         return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getName() {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public double getCurrentX() {
         return currentX.get();
+    }
+
+    public void setCurrentX(double currentX) {
+        this.currentX.set(currentX);
     }
 
     public double getCurrentY() {
         return currentY.get();
     }
 
-    public void setLocation(double x, double y) {
-        currentX.set(x);
-        currentY.set(y);
+    public void setCurrentY(double currentY) {
+        this.currentY.set(currentY);
     }
 
     public ShipperStatus getStatus() {
@@ -75,4 +94,3 @@ public class Shipper implements Serializable {
                 '}';
     }
 }
-

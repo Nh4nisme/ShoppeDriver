@@ -4,21 +4,21 @@ import com.logistics.model.Batch;
 import com.logistics.model.BatchStatus;
 import com.logistics.model.Shipper;
 import com.logistics.model.ShipperStatus;
-import com.logistics.util.QueueManager;
-import com.logistics.worker.ShipperWorker;
+import com.logistics.repository.BatchRepository;
+import com.logistics.repository.ShipperRepository;
+import com.logistics.util.Logger;
 
-import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 
 public class DispatcherService implements Runnable {
     private static final DispatcherService instance = new DispatcherService();
     private volatile boolean running = false;
-    private final BlockingQueue<Batch> batchQueue;
-    private final Map<String, ShipperWorker> shipperWorkers = new ConcurrentHashMap<>();
+    private final BatchRepository batchRepository;
+    private final ShipperRepository shipperRepository;
 
     private DispatcherService() {
-        this.batchQueue = QueueManager.getInstance().getBatchQueue();
+        this.batchRepository = new BatchRepository();
+        this.shipperRepository = new ShipperRepository();
     }
 
     public static DispatcherService getInstance() {
@@ -28,64 +28,69 @@ public class DispatcherService implements Runnable {
     @Override
     public void run() {
         running = true;
-        System.out.println("[DispatcherService] Starting...");
+        Logger.log("SERVICE", "DispatcherService bắt đầu chạy");
 
         try {
             while (running) {
-                Batch batch = batchQueue.poll(2, java.util.concurrent.TimeUnit.SECONDS);
-                if (batch == null) {
-                    continue;
-                }
+                // Poll for created batches every 2-5 seconds
+                Thread.sleep(2000 + (int)(Math.random() * 3000));
 
-                // Find nearest available shipper
-                ShipperWorker nearestWorker = findNearestAvailableWorker(batch);
-                if (nearestWorker != null) {
-                    batch.setStatus(BatchStatus.ASSIGNED);
-                    batch.setShipperId(nearestWorker.getShipper().getId());
-                    nearestWorker.assignBatch(batch);
-                    System.out.println("[DispatcherService] Assigned " + batch + " to " + nearestWorker.getShipper().getName());
-                    ShipperTrackingService.getInstance().updateBatchStatus(batch.getId());
-                } else {
-                    // Put back if no available shipper
-                    batchQueue.put(batch);
-                    System.out.println("[DispatcherService] No available shipper, requeueing: " + batch);
+                List<Batch> createdBatches = batchRepository.findByStatus(BatchStatus.CREATED);
+
+                for (Batch batch : createdBatches) {
+                    // Find nearest available shipper
+                    Shipper nearestShipper = findNearestAvailableShipper(batch);
+                    if (nearestShipper != null) {
+                        // Assign batch to shipper
+                        batch.setStatus(BatchStatus.ASSIGNED);
+                        batch.setShipperId(nearestShipper.getId());
+
+                        // Update batch in database
+                        batchRepository.updateStatus(batch.getId(), BatchStatus.ASSIGNED);
+
+                        // Update shipper status to BUSY
+                        shipperRepository.updateStatus(nearestShipper.getId(), ShipperStatus.BUSY);
+
+                        Logger.log("DISPATCH", "Gán batch " + batch.getId() + " → shipper " + nearestShipper.getName());
+                    }
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("[DispatcherService] Interrupted!");
+            Logger.log("SERVICE", "DispatcherService bị ngắt");
         } finally {
             running = false;
-            System.out.println("[DispatcherService] Stopped!");
+            Logger.log("SERVICE", "DispatcherService dừng");
         }
     }
 
-    private ShipperWorker findNearestAvailableWorker(Batch batch) {
-        ShipperWorker nearest = null;
+    private Shipper findNearestAvailableShipper(Batch batch) {
+        List<Shipper> availableShippers = shipperRepository.findAvailable();
+
+        if (availableShippers.isEmpty() || batch.getOrders().isEmpty()) {
+            return null;
+        }
+
+        Shipper nearest = null;
         double minDistance = Double.MAX_VALUE;
 
-        for (ShipperWorker worker : shipperWorkers.values()) {
-            Shipper shipper = worker.getShipper();
-            if (shipper.isActive() && shipper.getStatus() == ShipperStatus.IDLE) {
-                // Calculate distance to first order in batch
-                if (!batch.getOrders().isEmpty()) {
-                    double dist = shipper.distanceTo(
-                        batch.getOrders().get(0).getX(),
-                        batch.getOrders().get(0).getY()
-                    );
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        nearest = worker;
-                    }
-                }
+        // Calculate distance to first order in batch
+        double orderX = batch.getOrders().get(0).getX();
+        double orderY = batch.getOrders().get(0).getY();
+
+        for (Shipper shipper : availableShippers) {
+            double distance = Math.sqrt(
+                Math.pow(shipper.getCurrentX() - orderX, 2) +
+                Math.pow(shipper.getCurrentY() - orderY, 2)
+            );
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = shipper;
             }
         }
 
         return nearest;
-    }
-
-    public void registerShipperWorker(String shipperId, ShipperWorker worker) {
-        shipperWorkers.put(shipperId, worker);
     }
 
     public void stop() {
@@ -96,4 +101,3 @@ public class DispatcherService implements Runnable {
         return running;
     }
 }
-

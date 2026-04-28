@@ -52,7 +52,7 @@ public class Sidebar extends VBox implements DataChangeListener {
 
         Button clearButton = new Button("Clear");
         clearButton.setOnAction(e -> {
-            ShipperTrackingService.getInstance().clear();
+            ShipperTrackingService.getInstance().clearListeners();
             updateBatchList();
         });
         clearButton.setPrefWidth(100);
@@ -81,7 +81,7 @@ public class Sidebar extends VBox implements DataChangeListener {
         card.setPadding(new Insets(8));
         card.setStyle("-fx-border-color: #3498db; -fx-border-width: 2; -fx-border-radius: 3; -fx-background-color: #ffffff;");
 
-        Label idLabel = new Label(batch.getId());
+        Label idLabel = new Label(String.valueOf(batch.getId()));
         idLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
 
         Label statusLabel = new Label("Status: " + batch.getStatus().getDisplayName());
@@ -90,7 +90,9 @@ public class Sidebar extends VBox implements DataChangeListener {
         Label progressLabel = new Label("Progress: " + batch.getDeliveredCount() + "/" + batch.getOrderCount());
         progressLabel.setStyle("-fx-font-size: 10; -fx-text-fill: #555;");
 
-        Label shipperLabel = new Label("Shipper: " + (batch.getShipperId() != null ? batch.getShipperId() : "Unassigned"));
+        Label shipperLabel = new Label(
+                "Shipper: " + (batch.getShipperId() != 0 ? batch.getShipperId() : "Unassigned")
+        );
         shipperLabel.setStyle("-fx-font-size: 10; -fx-text-fill: #555;");
 
         card.getChildren().addAll(idLabel, statusLabel, progressLabel, shipperLabel);
