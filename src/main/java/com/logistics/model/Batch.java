@@ -5,21 +5,24 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Batch implements Serializable {
-    private final String id;
+    private int id;
     private final List<Order> orders;
     private final AtomicReference<BatchStatus> status;
-    private String shipperId;
+    private int shipperId;
 
-    public Batch(String id) {
+    public Batch() {
+        this.orders = Collections.synchronizedList(new ArrayList<>());
+        this.status = new AtomicReference<>(BatchStatus.PENDING);
+    }
+
+    public Batch(int id) {
         this.id = id;
         this.orders = Collections.synchronizedList(new ArrayList<>());
         this.status = new AtomicReference<>(BatchStatus.PENDING);
-        this.shipperId = null;
+        this.shipperId = 0;
     }
 
-    public String getId() {
-        return id;
-    }
+    public int getId() {return id;}
 
     public List<Order> getOrders() {
         return new ArrayList<>(orders);
@@ -27,6 +30,11 @@ public class Batch implements Serializable {
 
     public void addOrder(Order order) {
         orders.add(order);
+    }
+
+    public void setOrders(List<Order> orders) {
+        this.orders.clear();
+        this.orders.addAll(orders);
     }
 
     public BatchStatus getStatus() {
@@ -37,11 +45,11 @@ public class Batch implements Serializable {
         this.status.set(newStatus);
     }
 
-    public String getShipperId() {
+    public int getShipperId() {
         return shipperId;
     }
 
-    public void setShipperId(String shipperId) {
+    public void setShipperId(int shipperId) {
         this.shipperId = shipperId;
     }
 
@@ -64,5 +72,8 @@ public class Batch implements Serializable {
                 ", shipperId='" + shipperId + '\'' +
                 '}';
     }
-}
 
+    public void setId(int id) {
+        this.id = id;
+    }
+}

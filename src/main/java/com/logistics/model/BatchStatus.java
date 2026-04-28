@@ -5,7 +5,8 @@ public enum BatchStatus {
     ASSIGNED("Assigned"),
     IN_DELIVERY("In Delivery"),
     COMPLETED("Completed"),
-    FAILED("Failed");
+    FAILED("Failed"),
+    CREATED("Created"),;
 
     private final String displayName;
 

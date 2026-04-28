@@ -4,7 +4,9 @@ public enum ShipperStatus {
     IDLE("Idle"),
     IN_DELIVERY("In Delivery"),
     ON_BREAK("On Break"),
-    OFFLINE("Offline");
+    OFFLINE("Offline"),
+    BUSY("Busy"),
+    AVAILABLE("Available");
 
     private final String displayName;
 

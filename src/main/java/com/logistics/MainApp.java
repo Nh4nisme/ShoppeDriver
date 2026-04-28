@@ -1,18 +1,16 @@
 package com.logistics;
 
-import com.logistics.model.Shipper;
+import com.logistics.auth.LoginView;
+import com.logistics.auth.SessionManager;
+import com.logistics.db.DatabaseInitializer;
 import com.logistics.service.*;
 import com.logistics.ui.admin.DashboardView;
 import com.logistics.ui.admin.LogPanel;
-import com.logistics.ui.shipper.ShipperAppWindow;
+import com.logistics.util.Logger;
 import com.logistics.util.ThreadPoolManager;
-import com.logistics.worker.ShipperWorker;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class MainApp extends Application {
     private ThreadPoolManager threadPoolManager;
@@ -22,14 +20,29 @@ public class MainApp extends Application {
     private DispatcherService dispatcherService;
     private DashboardView dashboardView;
     private LogPanel logPanel;
-    private final Map<String, ShipperWorker> shipperWorkers = new HashMap<>();
-    private final Map<String, ShipperAppWindow> shipperWindows = new HashMap<>();
 
     @Override
     public void start(Stage primaryStage) {
-        System.out.println("[MainApp] Starting application...");
+        Logger.log("SYSTEM", "Khởi động hệ thống");
 
         try {
+            // Initialize database first
+            DatabaseInitializer.initialize();
+
+            // Show login screen
+            LoginView loginView = new LoginView();
+            loginView.initializeDefaultAdmin();
+
+            boolean loginSuccess = loginView.showAndWait();
+
+            if (!loginSuccess) {
+                Logger.log("SYSTEM", "Đăng nhập thất bại, thoát ứng dụng");
+                System.exit(0);
+                return;
+            }
+
+            Logger.log("SYSTEM", "Đăng nhập thành công, khởi tạo dashboard");
+
             // Initialize services
             initializeServices();
 
@@ -37,7 +50,7 @@ public class MainApp extends Application {
             dashboardView = new DashboardView();
             logPanel = LogPanel.getInstance();
 
-            logPanel.log("Application started");
+            Logger.log("UI", "Dashboard loaded");
 
             // Create scene and show
             Scene scene = new Scene(dashboardView, 1400, 800);
@@ -46,20 +59,23 @@ public class MainApp extends Application {
             primaryStage.setOnCloseRequest(e -> shutdown());
             primaryStage.show();
 
-            logPanel.log("Dashboard loaded");
-
             // Start background services
             startBackgroundServices();
 
-            // Create shippers and their workers
-            createShippersAndWorkers();
+            // Start tracking service
+            ShipperTrackingService.getInstance().start();
+
+            // Note: Shippers now run as separate applications
+            // Run: java com.logistics.shipper.ShipperApp <shipperId>
+            Logger.log("SYSTEM", "Shipper apps chạy riêng biệt với lệnh: java ShipperApp <shipperId>");
 
             // Start map update timer
             startMapUpdateTimer();
 
         } catch (Exception e) {
+            Logger.error("SYSTEM", "Lỗi khởi động ứng dụng: " + e.getMessage());
             e.printStackTrace();
-            System.err.println("[MainApp] Error starting application: " + e.getMessage());
+            System.exit(1);
         }
     }
 
@@ -85,39 +101,6 @@ public class MainApp extends Application {
         System.out.println("[MainApp] Background services started");
     }
 
-    private void createShippersAndWorkers() {
-        // Create 4 shippers
-        String[] names = {"Alice", "Bob", "Charlie", "Diana"};
-        double[] startX = {10, 20, 30, 40};
-        double[] startY = {10, 20, 30, 40};
-
-        for (int i = 0; i < names.length; i++) {
-            String shipperId = "SHIPPER-" + (i + 1);
-            Shipper shipper = new Shipper(shipperId, names[i], startX[i], startY[i]);
-
-            // Register with tracking service
-            trackingService.registerShipper(shipper);
-
-            // Create worker
-            ShipperWorker worker = new ShipperWorker(shipper);
-            shipperWorkers.put(shipperId, worker);
-
-            // Register with dispatcher
-            dispatcherService.registerShipperWorker(shipperId, worker);
-
-            // Start worker thread
-            threadPoolManager.execute(worker);
-
-            // Create window
-            ShipperAppWindow window = new ShipperAppWindow(worker);
-            shipperWindows.put(shipperId, window);
-            window.show();
-
-            logPanel.log("Created shipper: " + names[i]);
-            System.out.println("[MainApp] Created shipper: " + names[i]);
-        }
-    }
-
     private void startMapUpdateTimer() {
         javafx.animation.Timeline timeline = new javafx.animation.Timeline(
             new javafx.animation.KeyFrame(
@@ -139,12 +122,6 @@ public class MainApp extends Application {
             routeBuilderService.stop();
             dispatcherService.stop();
 
-            // Stop all shipper workers
-            shipperWorkers.values().forEach(ShipperWorker::stop);
-
-            // Close all shipper windows
-            shipperWindows.values().forEach(ShipperAppWindow::hide);
-
             // Shutdown thread pool
             threadPoolManager.shutdown();
 
@@ -161,4 +138,3 @@ public class MainApp extends Application {
         launch(args);
     }
 }
-

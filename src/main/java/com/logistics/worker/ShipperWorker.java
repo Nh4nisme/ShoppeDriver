@@ -85,7 +85,7 @@ public class ShipperWorker implements Runnable {
 
         if (currentOrder != null) {
             // Move directly to the order and mark as done
-            shipper.setLocation(currentOrder.getX(), currentOrder.getY());
+            shipper.distanceTo(currentOrder.getX(), currentOrder.getY());
             currentOrder.setStatus(OrderStatus.DONE);
             System.out.println("[ShipperWorker-" + shipper.getName() + "] Delivered: " + currentOrder);
             
@@ -122,7 +122,7 @@ public class ShipperWorker implements Runnable {
             } else {
                 // Move towards order
                 double[] newPos = LocationUtil.moveTowards(currentX, currentY, orderX, orderY);
-                shipper.setLocation(newPos[0], newPos[1]);
+                shipper.distanceTo(newPos[0], newPos[1]);
                 ShipperTrackingService.getInstance().updateShipperLocation(shipper.getId(), newPos[0], newPos[1]);
             }
 

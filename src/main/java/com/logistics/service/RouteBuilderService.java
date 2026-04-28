@@ -3,10 +3,12 @@ package com.logistics.service;
 import com.logistics.model.Order;
 import com.logistics.model.Batch;
 import com.logistics.model.OrderStatus;
-import com.logistics.util.QueueManager;
+import com.logistics.model.BatchStatus;
+import com.logistics.repository.OrderRepository;
+import com.logistics.repository.BatchRepository;
+import com.logistics.util.Logger;
 
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RouteBuilderService implements Runnable {
@@ -14,13 +16,13 @@ public class RouteBuilderService implements Runnable {
     private volatile boolean running = false;
     private final int BATCH_SIZE_MIN = 3;
     private final int BATCH_SIZE_MAX = 5;
-    private final BlockingQueue<Order> orderQueue;
-    private final BlockingQueue<Batch> batchQueue;
+    private final OrderRepository orderRepository;
+    private final BatchRepository batchRepository;
     private final AtomicInteger batchCounter = new AtomicInteger(0);
 
     private RouteBuilderService() {
-        this.orderQueue = QueueManager.getInstance().getOrderQueue();
-        this.batchQueue = QueueManager.getInstance().getBatchQueue();
+        this.orderRepository = new OrderRepository();
+        this.batchRepository = new BatchRepository();
     }
 
     public static RouteBuilderService getInstance() {
@@ -30,46 +32,49 @@ public class RouteBuilderService implements Runnable {
     @Override
     public void run() {
         running = true;
-        System.out.println("[RouteBuilderService] Starting...");
+        Logger.log("SERVICE", "RouteBuilderService bắt đầu chạy");
 
         try {
             while (running) {
-                List<Order> batchOrders = new ArrayList<>();
+                // Poll for pending orders every 2-5 seconds
+                Thread.sleep(2000 + (int)(Math.random() * 3000));
 
-                // Wait for first order with timeout
-                Order firstOrder = orderQueue.poll(2, java.util.concurrent.TimeUnit.SECONDS);
-                if (firstOrder == null) {
-                    continue;
-                }
+                List<Order> pendingOrders = orderRepository.findByStatus(OrderStatus.PENDING);
 
-                batchOrders.add(firstOrder);
+                if (pendingOrders.size() >= BATCH_SIZE_MIN) {
+                    // Take up to BATCH_SIZE_MAX orders
+                    List<Order> batchOrders = pendingOrders.subList(0,
+                        Math.min(BATCH_SIZE_MAX, pendingOrders.size()));
 
-                // Try to collect more orders (up to BATCH_SIZE_MAX)
-                orderQueue.drainTo(batchOrders, BATCH_SIZE_MAX - 1);
-
-                // If we have at least BATCH_SIZE_MIN orders, create batch
-                if (batchOrders.size() >= BATCH_SIZE_MIN) {
+                    // Sort by nearest neighbor
                     List<Order> sortedOrders = sortByNearestNeighbor(batchOrders);
-                    Batch batch = new Batch("BATCH-" + batchCounter.incrementAndGet());
+
+                    // Create batch
+                    Batch batch = new Batch();
+                    batch.setStatus(BatchStatus.CREATED);
                     for (Order order : sortedOrders) {
                         batch.addOrder(order);
-                        order.setStatus(OrderStatus.IN_DELIVERY);
                     }
-                    batchQueue.put(batch);
-                    System.out.println("[RouteBuilderService] Created: " + batch);
-                } else {
-                    // Put them back if not enough orders
-                    for (Order order : batchOrders) {
-                        orderQueue.put(order);
+
+                    // Save batch to database
+                    Batch savedBatch = batchRepository.save(batch);
+                    if (savedBatch != null) {
+                        // Save batch-order relationships
+                        List<Integer> orderIds = sortedOrders.stream()
+                            .map(Order::getId)
+                            .toList();
+                        batchRepository.saveBatchOrders(savedBatch.getId(), orderIds);
+
+                        Logger.log("BATCH", "Tạo batch: ID=" + savedBatch.getId() + ", số đơn=" + sortedOrders.size());
                     }
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("[RouteBuilderService] Interrupted!");
+            Logger.log("SERVICE", "RouteBuilderService bị ngắt");
         } finally {
             running = false;
-            System.out.println("[RouteBuilderService] Stopped!");
+            Logger.log("SERVICE", "RouteBuilderService dừng");
         }
     }
 
@@ -122,4 +127,3 @@ public class RouteBuilderService implements Runnable {
         return running;
     }
 }
-
