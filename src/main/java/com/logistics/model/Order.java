@@ -7,6 +7,7 @@ public class Order implements Serializable {
     private int id;
     private double x;
     private double y;
+    private String address;
     private final AtomicReference<OrderStatus> status;
 
     public Order(int id, double x, double y) {
@@ -17,7 +18,7 @@ public class Order implements Serializable {
     }
 
     public Order() {
-       this(0, 0, 0);
+        this(0, 0, 0);
     }
 
     public Order(double x, double y) {
@@ -48,6 +49,30 @@ public class Order implements Serializable {
         this.y = y;
     }
 
+    public double getLatitude() {
+        return x;
+    }
+
+    public void setLatitude(double latitude) {
+        this.x = latitude;
+    }
+
+    public double getLongitude() {
+        return y;
+    }
+
+    public void setLongitude(double longitude) {
+        this.y = longitude;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
     public OrderStatus getStatus() {
         return status.get();
     }
@@ -62,6 +87,7 @@ public class Order implements Serializable {
                 "id='" + id + '\'' +
                 ", x=" + x +
                 ", y=" + y +
+                ", address='" + address + '\'' +
                 ", status=" + status.get() +
                 '}';
     }
