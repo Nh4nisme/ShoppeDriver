@@ -1,6 +1,7 @@
 package com.logistics.shipper;
 
 import com.logistics.auth.LoginView;
+import com.logistics.chat.ChatClient;
 import com.logistics.db.DatabaseInitializer;
 import com.logistics.model.Batch;
 import com.logistics.model.BatchStatus;
@@ -9,6 +10,7 @@ import com.logistics.model.OrderStatus;
 import com.logistics.repository.BatchRepository;
 import com.logistics.repository.OrderRepository;
 import com.logistics.repository.ShipperRepository;
+import com.logistics.ui.shipper.ChatPanel;
 import com.logistics.util.Logger;
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -32,6 +34,7 @@ public class ShipperApp extends Application {
     private BatchRepository batchRepository;
     private OrderRepository orderRepository;
     private ShipperRepository shipperRepository;
+    private ChatClient chatClient;
 
     // UI Components
     private Label shipperInfoLabel;
@@ -80,11 +83,18 @@ public class ShipperApp extends Application {
 
             Logger.log("SHIPPER", "Khởi tạo shipper: " + shipperName + " (ID: " + shipperId + ")");
 
+            // Initialize Chat Client
+            chatClient = ChatClient.getInstance();
+            chatClient.initialize(shipperId, shipperName);
+
             // Create UI
             createUI(primaryStage);
 
             // Start polling for batches
             startBatchPolling();
+
+            // Start chat client connection
+            chatClient.connect();
 
         } catch (Exception e) {
             Logger.error("SHIPPER", "Lỗi khởi tạo ứng dụng shipper: " + e.getMessage());
@@ -114,7 +124,15 @@ public class ShipperApp extends Application {
         orderDetailArea.setEditable(false);
         orderDetailArea.setPromptText("Chi tiết đơn hàng sẽ hiển thị ở đây");
         orderDetailArea.setPrefWidth(250);
-        root.setRight(orderDetailArea);
+        orderDetailArea.setPrefHeight(180);
+
+        ChatPanel chatPanel = new ChatPanel();
+        chatPanel.setPrefWidth(300);
+        chatPanel.setPrefHeight(260);
+
+        VBox rightBox = new VBox(8, orderDetailArea, chatPanel);
+        rightBox.setPadding(new Insets(0, 10, 0, 10));
+        root.setRight(rightBox);
 
         // Bottom: Controls and progress
         VBox bottomBox = new VBox(10);
@@ -149,13 +167,20 @@ public class ShipperApp extends Application {
 
         Scene scene = new Scene(root, 600, 500);
         stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+        stage.setFullScreenExitHint("");
         stage.setOnCloseRequest(e -> {
             Logger.log("SHIPPER", "Đóng ứng dụng shipper: " + shipperName);
+            if (chatClient != null) {
+                chatClient.disconnect();
+            }
             System.exit(0);
         });
         stage.show();
 
         Logger.log("UI", "Giao diện shipper đã tải: " + shipperName);
+        Logger.log("UI", "Shipper app opened in fullscreen mode");
     }
 
     private void startBatchPolling() {

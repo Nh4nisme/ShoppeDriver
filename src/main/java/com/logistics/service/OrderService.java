@@ -55,7 +55,8 @@ public class OrderService implements Runnable {
         }
 
         double latPadding = kilometersToLatitudeDelta(thresholdKm);
-        double lngPadding = kilometersToLongitudeDelta(thresholdKm, route.getFrom().latitude());
+        double centerLatitude = (route.getMinLatitude() + route.getMaxLatitude()) / 2.0;
+        double lngPadding = kilometersToLongitudeDelta(thresholdKm, centerLatitude);
 
         List<Order> candidates = orderRepository.findOrdersInBoundingBox(
                 route.getMinLatitude() - latPadding,
@@ -68,23 +69,65 @@ public class OrderService implements Runnable {
         List<Order> matchedOrders = new ArrayList<>();
         for (Order order : candidates) {
             LatLng orderPoint = new LatLng(order.getLatitude(), order.getLongitude());
-            double minDistanceKm = route.getPolyline().stream()
-                    .mapToDouble(point -> haversineKm(orderPoint, point))
-                    .min()
-                    .orElse(Double.MAX_VALUE);
+            double minDistanceKm = calculateMinDistanceToPolyline(orderPoint, route.getPolyline());
 
             if (minDistanceKm <= thresholdKm) {
                 matchedOrders.add(order);
             }
         }
 
-        matchedOrders.sort(Comparator.comparingDouble(order ->
-                route.getPolyline().stream()
-                        .mapToDouble(point -> haversineKm(new LatLng(order.getLatitude(), order.getLongitude()), point))
-                        .min()
-                        .orElse(Double.MAX_VALUE)
-        ));
+        matchedOrders.sort(Comparator.comparingDouble(order -> {
+            LatLng orderPoint = new LatLng(order.getLatitude(), order.getLongitude());
+            return calculateMinDistanceToPolyline(orderPoint, route.getPolyline());
+        }));
         return matchedOrders;
+    }
+
+    private double calculateMinDistanceToPolyline(LatLng point, List<LatLng> polyline) {
+        if (polyline.isEmpty()) {
+            return Double.MAX_VALUE;
+        }
+        if (polyline.size() == 1) {
+            return haversineKm(point, polyline.get(0));
+        }
+
+        double minDistance = Double.MAX_VALUE;
+        for (int i = 0; i < polyline.size() - 1; i++) {
+            LatLng start = polyline.get(i);
+            LatLng end = polyline.get(i + 1);
+            double segmentDistance = perpendicularDistanceToSegment(point, start, end);
+            minDistance = Math.min(minDistance, segmentDistance);
+        }
+        return minDistance;
+    }
+
+    private double perpendicularDistanceToSegment(LatLng point, LatLng segStart, LatLng segEnd) {
+        double originLat = Math.toRadians(segStart.latitude());
+        double kmPerDegreeLat = 111.32;
+        double kmPerDegreeLng = 111.32 * Math.cos(originLat);
+
+        double startX = 0.0;
+        double startY = 0.0;
+        double endX = (segEnd.longitude() - segStart.longitude()) * kmPerDegreeLng;
+        double endY = (segEnd.latitude() - segStart.latitude()) * kmPerDegreeLat;
+        double pointX = (point.longitude() - segStart.longitude()) * kmPerDegreeLng;
+        double pointY = (point.latitude() - segStart.latitude()) * kmPerDegreeLat;
+
+        double segmentX = endX - startX;
+        double segmentY = endY - startY;
+        double segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
+        if (segmentLengthSquared == 0.0) {
+            return haversineKm(point, segStart);
+        }
+
+        double projection = ((pointX - startX) * segmentX + (pointY - startY) * segmentY) / segmentLengthSquared;
+        double clampedProjection = Math.max(0.0, Math.min(1.0, projection));
+        double closestX = startX + clampedProjection * segmentX;
+        double closestY = startY + clampedProjection * segmentY;
+
+        double dx = pointX - closestX;
+        double dy = pointY - closestY;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     private double haversineKm(LatLng a, LatLng b) {

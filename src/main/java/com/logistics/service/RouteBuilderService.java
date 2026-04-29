@@ -28,6 +28,14 @@ public class RouteBuilderService {
         return instance;
     }
 
+    public GeoService getGeoService() {
+        return geoService;
+    }
+
+    public RouteService getRouteService() {
+        return routeService;
+    }
+
     public Batch createBatchFromAddresses(String from, String to) throws IOException, InterruptedException {
         if (from == null || to == null || from.isBlank() || to.isBlank()) {
             throw new IllegalArgumentException("Invalid address");

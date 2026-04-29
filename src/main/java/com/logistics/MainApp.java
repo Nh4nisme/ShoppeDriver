@@ -1,6 +1,7 @@
 package com.logistics;
 
 import com.logistics.auth.LoginView;
+import com.logistics.chat.ChatServer;
 import com.logistics.db.DatabaseInitializer;
 import com.logistics.service.DispatcherService;
 import com.logistics.service.OrderService;
@@ -20,6 +21,7 @@ public class MainApp extends Application {
     private OrderService orderService;
     private RouteBuilderService routeBuilderService;
     private DispatcherService dispatcherService;
+    private ChatServer chatServer;
     private DashboardView dashboardView;
     private LogPanel logPanel;
 
@@ -45,14 +47,19 @@ public class MainApp extends Application {
             initializeServices();
 
             dashboardView = new DashboardView();
-            logPanel = LogPanel.getInstance();
+            logPanel = dashboardView.getLogPanel();
             Logger.log("UI", "Dashboard loaded");
 
             Scene scene = new Scene(dashboardView, 1400, 800);
             primaryStage.setTitle("Shoppe Driver - Admin Dashboard");
             primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.setFullScreen(true);
+            primaryStage.setFullScreenExitHint("");
             primaryStage.setOnCloseRequest(e -> shutdown());
             primaryStage.show();
+            Logger.log("UI", "Admin app opened in fullscreen mode");
+            appLog("Dashboard san sang");
 
             startBackgroundServices();
             ShipperTrackingService.getInstance().start();
@@ -71,14 +78,16 @@ public class MainApp extends Application {
         orderService = OrderService.getInstance();
         routeBuilderService = RouteBuilderService.getInstance();
         dispatcherService = DispatcherService.getInstance();
-        System.out.println("[MainApp] Services initialized");
+        chatServer = ChatServer.getInstance();
+        chatServer.start();
+        Logger.log("SYSTEM", "Services initialized");
     }
 
     private void startBackgroundServices() {
         threadPoolManager.setRunning(true);
         threadPoolManager.execute(orderService);
-        logPanel.log("Background services started");
-        System.out.println("[MainApp] Background services started");
+        Logger.log("SYSTEM", "Background services started");
+        appLog("Da khoi dong background services");
     }
 
     private void startMapUpdateTimer() {
@@ -93,15 +102,16 @@ public class MainApp extends Application {
     }
 
     private void shutdown() {
-        System.out.println("[MainApp] Shutting down...");
-        logPanel.log("Application shutting down...");
+        Logger.log("SYSTEM", "Shutting down application");
+        appLog("Dang dong ung dung");
 
         try {
             orderService.stop();
             trackingService.stop();
+            chatServer.stop();
             threadPoolManager.shutdown();
-            System.out.println("[MainApp] Shutdown complete");
-            logPanel.log("Application stopped");
+            Logger.log("SYSTEM", "Shutdown complete");
+            appLog("Ung dung da dung");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -111,5 +121,11 @@ public class MainApp extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    private void appLog(String message) {
+        if (logPanel != null) {
+            logPanel.log(message);
+        }
     }
 }
