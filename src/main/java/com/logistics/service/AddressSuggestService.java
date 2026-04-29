@@ -77,11 +77,17 @@ public class AddressSuggestService {
         for (int i = 0; i < results.size(); i++) {
             JsonObject item = results.get(i).getAsJsonObject();
             String display = item.get("display_name").getAsString();
+            JsonObject address = item.has("address") ? item.getAsJsonObject("address") : new JsonObject();
             suggestions.add(new AddressSuggestion(
                     display,
                     item.get("lat").getAsDouble(),
                     item.get("lon").getAsDouble(),
-                    display
+                    display,
+                    pickFirst(address, "road", "pedestrian", "residential", "street"),
+                    pickFirst(address, "house_number"),
+                    pickFirst(address, "suburb", "quarter", "neighbourhood", "hamlet"),
+                    pickFirst(address, "city_district", "district", "county", "town"),
+                    pickFirst(address, "city", "state", "province")
             ));
         }
         return suggestions;
@@ -117,9 +123,39 @@ public class AddressSuggestService {
                     display,
                     coordinates.get(1).getAsDouble(),
                     coordinates.get(0).getAsDouble(),
-                    display
+                    display,
+                    name,
+                    "",
+                    getString(properties, "district"),
+                    firstNonBlank(getString(properties, "county"), getString(properties, "state_district")),
+                    city
             ));
         }
         return suggestions;
+    }
+
+    private String pickFirst(JsonObject source, String... keys) {
+        for (String key : keys) {
+            if (source.has(key) && !source.get(key).isJsonNull()) {
+                String value = source.get(key).getAsString();
+                if (!value.isBlank()) {
+                    return value;
+                }
+            }
+        }
+        return "";
+    }
+
+    private String getString(JsonObject source, String key) {
+        return source.has(key) && !source.get(key).isJsonNull() ? source.get(key).getAsString() : "";
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 }

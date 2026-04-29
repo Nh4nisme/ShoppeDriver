@@ -2,129 +2,273 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Logistics Dispatch Map</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDummy&callback=initMap" async defer></script>
+    <title>Shoppe Driver Map</title>
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css"/>
+    <script src="vendor/leaflet/leaflet.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-        }
-        html, body {
-            height: 100%;
-            font-family: Arial, sans-serif;
-        }
-        #map {
+        html, body, #map {
             width: 100%;
             height: 100%;
-        }
-        .info-window {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             font-family: Arial, sans-serif;
-            font-size: 12px;
+        }
+
+        .route-label {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid #d0d7de;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            color: #1f2937;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
         }
     </style>
 </head>
 <body>
-    <div id="map"></div>
+<div id="map"></div>
 
-    <script>
-        let map;
-        let markers = {};
-        let routes = {};
+<script>
+    let map;
+    let shipperMarkers = {};
+    let persistedOrderMarkers = {};
+    let previewOrderMarkers = {};
+    let routeLayers = [];
+    let routeBadges = [];
+    let endpointMarkers = [];
+    let pendingData = null;
+    let lastFitSignature = '';
 
-        function initMap() {
-            // Initialize map centered on a default location
-            map = new google.maps.Map(document.getElementById('map'), {
-                zoom: 10,
-                center: { lat: 50, lng: 50 },
-                mapTypeId: google.maps.MapTypeId.ROADMAP,
-                streetViewControl: false
-            });
-            console.log('Map initialized');
+    function initMap() {
+        map = L.map('map', {
+            zoomControl: true,
+            preferCanvas: true
+        }).setView([10.7769, 106.7009], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        if (pendingData) {
+            updateMap(pendingData);
+            pendingData = null;
+        }
+    }
+
+    function updateMap(data) {
+        if (!map) {
+            pendingData = data;
+            return;
         }
 
-        function updateMap(data) {
-            try {
-                const mapData = JSON.parse(data);
+        const mapData = typeof data === 'string' ? JSON.parse(data) : data;
 
-                // Update shippers
-                if (mapData.shippers) {
-                    updateShippers(mapData.shippers);
-                }
+        updateShippers(mapData.shippers || []);
+        updatePersistedOrders(mapData.orders || []);
+        updatePreviewOrders(mapData.previewOrders || []);
+        updatePreviewRoutes(mapData.previewRoutes || [], mapData.selectedRouteIndex || 0);
+        fitMapToContentIfNeeded(mapData.previewRoutes || [], mapData.selectedRouteIndex || 0, mapData.previewOrders || []);
+    }
 
-                // Update orders
-                if (mapData.orders) {
-                    updateOrders(mapData.orders);
-                }
+    function createMarker(lat, lng, options) {
+        return L.circleMarker([lat, lng], {
+            radius: options.radius || 7,
+            color: options.color,
+            fillColor: options.fillColor || options.color,
+            fillOpacity: 0.9,
+            weight: options.weight || 2
+        });
+    }
 
-                // Update map bounds
-                if (mapData.bounds) {
-                    const bounds = new google.maps.LatLngBounds(
-                        { lat: mapData.bounds.minY, lng: mapData.bounds.minX },
-                        { lat: mapData.bounds.maxY, lng: mapData.bounds.maxX }
-                    );
-                    map.fitBounds(bounds);
-                }
-            } catch(e) {
-                console.error('Error updating map:', e);
+    function syncMarkers(items, markerStore, markerFactory, tooltipFactory) {
+        const activeIds = new Set();
+        items.forEach(item => {
+            const id = String(item.id);
+            activeIds.add(id);
+            if (markerStore[id]) {
+                markerStore[id].setLatLng([item.lat, item.lng]);
+            } else {
+                markerStore[id] = markerFactory(item).addTo(map);
             }
-        }
-
-        function updateShippers(shippers) {
-            shippers.forEach(function(shipper) {
-                const position = { lat: shipper.y, lng: shipper.x };
-                const title = shipper.name + ' (' + shipper.status + ')';
-
-                if (markers[shipper.id]) {
-                    markers[shipper.id].setPosition(position);
-                    markers[shipper.id].setTitle(title);
-                } else {
-                    const marker = new google.maps.Marker({
-                        position: position,
-                        map: map,
-                        title: title,
-                        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-                        label: shipper.name.charAt(0)
-                    });
-                    markers[shipper.id] = marker;
-                }
-            });
-        }
-
-        function updateOrders(orders) {
-            orders.forEach(function(order) {
-                const position = { lat: order.y, lng: order.x };
-                const title = order.id + ' (' + order.status + ')';
-
-                let iconColor = 'red';
-                if (order.status === 'DONE') {
-                    iconColor = 'green';
-                } else if (order.status === 'IN_DELIVERY') {
-                    iconColor = 'yellow';
-                }
-
-                if (markers[order.id]) {
-                    markers[order.id].setPosition(position);
-                    markers[order.id].setTitle(title);
-                    markers[order.id].setIcon('http://maps.google.com/mapfiles/ms/icons/' + iconColor + '-dot.png');
-                } else {
-                    const marker = new google.maps.Marker({
-                        position: position,
-                        map: map,
-                        title: title,
-                        icon: 'http://maps.google.com/mapfiles/ms/icons/' + iconColor + '-dot.png'
-                    });
-                    markers[order.id] = marker;
-                }
-            });
-        }
-
-        // Initialize on page load
-        window.addEventListener('load', function() {
-            if (typeof initMap === 'function') {
-                initMap();
+            const tooltip = tooltipFactory(item);
+            if (tooltip) {
+                markerStore[id].bindTooltip(tooltip);
             }
         });
-    </script>
+
+        Object.keys(markerStore).forEach(id => {
+            if (!activeIds.has(id)) {
+                map.removeLayer(markerStore[id]);
+                delete markerStore[id];
+            }
+        });
+    }
+
+    function updateShippers(shippers) {
+        syncMarkers(
+            shippers,
+            shipperMarkers,
+            shipper => createMarker(shipper.lat, shipper.lng, {
+                color: '#0f4c81',
+                fillColor: '#1d70b8',
+                radius: 8
+            }),
+            shipper => shipper.name + ' (' + shipper.status + ')'
+        );
+    }
+
+    function updatePersistedOrders(orders) {
+        syncMarkers(
+            orders,
+            persistedOrderMarkers,
+            order => createMarker(order.lat, order.lng, {
+                color: order.status === 'COMPLETED' ? '#2e7d32' : '#f57c00',
+                fillColor: order.status === 'COMPLETED' ? '#4caf50' : '#ffb74d',
+                radius: 6
+            }),
+            order => 'Order #' + order.id + ' - ' + order.status
+        );
+    }
+
+    function updatePreviewOrders(orders) {
+        syncMarkers(
+            orders,
+            previewOrderMarkers,
+            order => createMarker(order.lat, order.lng, {
+                color: '#7b1fa2',
+                fillColor: '#ab47bc',
+                radius: 7,
+                weight: 3
+            }),
+            order => {
+                const address = order.address && order.address.length > 0 ? '<br>' + order.address : '';
+                return 'Preview Order #' + order.id + address;
+            }
+        );
+    }
+
+    function updatePreviewRoutes(routes, selectedRouteIndex) {
+        routeLayers.forEach(layer => map.removeLayer(layer));
+        routeBadges.forEach(layer => map.removeLayer(layer));
+        endpointMarkers.forEach(marker => map.removeLayer(marker));
+        routeLayers = [];
+        routeBadges = [];
+        endpointMarkers = [];
+
+        if (!routes || routes.length === 0) {
+            return;
+        }
+
+        routes.forEach(route => {
+            const selected = route.index === selectedRouteIndex;
+            const path = (route.polyline || []).map(point => [point.lat, point.lng]);
+            if (path.length === 0) {
+                return;
+            }
+
+            const polyline = L.polyline(path, {
+                color: selected ? '#1565c0' : '#90caf9',
+                weight: selected ? 6 : 4,
+                opacity: selected ? 0.95 : 0.65
+            }).addTo(map);
+            routeLayers.push(polyline);
+
+            const midpoint = path[Math.floor(path.length / 2)];
+            const badge = L.marker(midpoint, {
+                interactive: false,
+                icon: L.divIcon({
+                    className: 'route-label',
+                    html: routeLabel(route),
+                    iconSize: null
+                })
+            }).addTo(map);
+            routeBadges.push(badge);
+
+            if (selected) {
+                endpointMarkers.push(createMarker(route.fromLat, route.fromLng, {
+                    color: '#1b5e20',
+                    fillColor: '#43a047',
+                    radius: 9
+                }).addTo(map).bindTooltip('A - Start'));
+
+                endpointMarkers.push(createMarker(route.toLat, route.toLng, {
+                    color: '#b71c1c',
+                    fillColor: '#e53935',
+                    radius: 9
+                }).addTo(map).bindTooltip('B - End'));
+            }
+        });
+    }
+
+    function routeLabel(route) {
+        const km = (route.distanceMeters / 1000).toFixed(1);
+        const min = Math.round(route.durationSeconds / 60);
+        return 'Route ' + (route.index + 1) + ': ' + min + ' min - ' + km + ' km';
+    }
+
+    function fitMapToContentIfNeeded(routes, selectedRouteIndex, previewOrders) {
+        if (!map) {
+            return;
+        }
+
+        const fitSignature = buildFitSignature(routes, selectedRouteIndex, previewOrders);
+        if (fitSignature === lastFitSignature) {
+            return;
+        }
+        lastFitSignature = fitSignature;
+
+        const layers = [];
+        Object.values(shipperMarkers).forEach(marker => layers.push(marker));
+        Object.values(previewOrderMarkers).forEach(marker => layers.push(marker));
+
+        if (routeLayers.length > 0) {
+            const selectedRoute = routeLayers.find((_, index) => routeLayers[index].options.color === '#1565c0') || routeLayers[0];
+            map.fitBounds(selectedRoute.getBounds(), {padding: [28, 28]});
+            return;
+        }
+
+        Object.values(persistedOrderMarkers).forEach(marker => layers.push(marker));
+        if (layers.length === 0) {
+            return;
+        }
+
+        const featureGroup = L.featureGroup(layers);
+        map.fitBounds(featureGroup.getBounds(), {padding: [28, 28]});
+    }
+
+    function buildFitSignature(routes, selectedRouteIndex, previewOrders) {
+        if (routes && routes.length > 0) {
+            const selected = routes.find(route => route.index === selectedRouteIndex) || routes[0];
+            const first = selected.polyline && selected.polyline.length > 0 ? selected.polyline[0] : null;
+            const last = selected.polyline && selected.polyline.length > 0 ? selected.polyline[selected.polyline.length - 1] : null;
+            return JSON.stringify({
+                type: 'route',
+                selectedRouteIndex: selectedRouteIndex,
+                routeCount: routes.length,
+                first: first,
+                last: last,
+                previewOrderIds: (previewOrders || []).map(order => order.id)
+            });
+        }
+
+        if (previewOrders && previewOrders.length > 0) {
+            return JSON.stringify({
+                type: 'orders',
+                ids: previewOrders.map(order => order.id)
+            });
+        }
+
+        return JSON.stringify({
+            type: 'base',
+            shipperIds: Object.keys(shipperMarkers),
+            orderIds: Object.keys(persistedOrderMarkers)
+        });
+    }
+
+    window.updateMap = updateMap;
+    window.addEventListener('load', initMap);
+</script>
 </body>
 </html>
-

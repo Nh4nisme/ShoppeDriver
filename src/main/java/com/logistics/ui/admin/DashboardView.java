@@ -19,20 +19,18 @@ public class DashboardView extends BorderPane {
         this.shipperPanel = new ShipperStatusPanel();
         this.logPanel = LogPanel.getInstance();
 
-        // Layout: LEFT = Sidebar, TOP = KPI, CENTER = Map + Right Panel, BOTTOM = Log
         this.setLeft(sidebar);
         this.setTop(kpiBar);
 
-        // Center: Map on left, Shipper panel on right
         HBox centerBox = new HBox();
         centerBox.getChildren().addAll(mapPanel, shipperPanel);
         HBox.setHgrow(mapPanel, javafx.scene.layout.Priority.ALWAYS);
         shipperPanel.setPrefWidth(300);
         this.setCenter(centerBox);
 
-        // Bottom: Log panel
         VBox logContainer = new VBox(logPanel);
-        logContainer.setPrefHeight(150);
+        logContainer.setPrefHeight(130);
+        logContainer.setMinHeight(130);
         this.setBottom(logContainer);
     }
 

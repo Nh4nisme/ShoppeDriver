@@ -1,14 +1,13 @@
 package com.logistics.ui.admin;
 
-import com.logistics.model.AddressSuggestion;
-import com.logistics.model.Batch;
-import com.logistics.model.Order;
-import com.logistics.model.Route;
+import com.logistics.model.*;
 import com.logistics.service.AddressSuggestService;
 import com.logistics.service.BatchService;
 import com.logistics.service.OrderService;
 import com.logistics.service.RouteBuilderService;
 import com.logistics.service.ShipperTrackingService;
+import com.logistics.ui.GoogleMapsPanel;
+import com.logistics.util.Logger;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -19,7 +18,9 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -33,7 +34,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class BatchCreationPanel extends VBox {
-    private static final double ORDER_SEARCH_RADIUS_KM = 5.0;
+    private static final double ORDER_SEARCH_RADIUS_KM = 0.5;
 
     private final RouteBuilderService routeBuilderService;
     private final OrderService orderService;
@@ -44,23 +45,35 @@ public class BatchCreationPanel extends VBox {
     private Label routeSummaryLabel;
     private Label statusLabel;
     private Label selectionLabel;
+    private Label routeListLabel;
+    private VBox routeListBox;
     private VBox orderListBox;
     private Button createButton;
     private Button selectAllButton;
     private Button clearSelectionButton;
-    private TextField fromAddressField;
-    private TextField toAddressField;
+    private TextField fromStreetField;
+    private TextField fromNumberField;
+    private TextField fromWardField;
+    private TextField fromDistrictField;
+    private TextField fromCityField;
+    private TextField toStreetField;
+    private TextField toNumberField;
+    private TextField toWardField;
+    private TextField toDistrictField;
+    private TextField toCityField;
+    private List<Route> previewRoutes = new ArrayList<>();
+    private int selectedRouteIndex = 0;
     private Route currentRoute;
     private List<Order> loadedOrders = new ArrayList<>();
-    private AddressSuggestion selectedFromSuggestion;
-    private AddressSuggestion selectedToSuggestion;
 
     public BatchCreationPanel() {
         this.routeBuilderService = RouteBuilderService.getInstance();
         this.orderService = OrderService.getInstance();
         this.batchService = new BatchService();
         this.addressSuggestService = AddressSuggestService.getInstance();
-        this.setPrefHeight(300);
+        this.setPrefWidth(470);
+        this.setMinWidth(470);
+        this.setPrefHeight(340);
         this.setStyle("-fx-border-color: #cccccc; -fx-border-width: 1 1 1 1; -fx-padding: 10;");
 
         Label titleLabel = new Label("Tao Batch Moi (Address-Based)");
@@ -68,34 +81,25 @@ public class BatchCreationPanel extends VBox {
 
         VBox inputBox = createInputSection();
         VBox orderBox = createOrderSection();
+        SplitPane splitPane = new SplitPane(inputBox, orderBox);
+        splitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        splitPane.setDividerPositions(0.48);
+        VBox.setVgrow(splitPane, Priority.ALWAYS);
 
-        this.getChildren().addAll(titleLabel, inputBox, orderBox);
+        this.getChildren().addAll(titleLabel, splitPane);
         this.setSpacing(10);
     }
 
     private VBox createInputSection() {
-        VBox box = new VBox(10);
-        box.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 10;");
+        VBox box = new VBox(14);
+        box.setStyle("-fx-background-color: #f7f9fc; -fx-border-color: #d9e1ec; -fx-border-width: 1; -fx-padding: 14;");
 
-        HBox fromBox = new HBox(10);
-        fromBox.setAlignment(Pos.CENTER_LEFT);
-        Label fromLabel = new Label("From:");
-        fromLabel.setPrefWidth(60);
-        fromAddressField = new TextField();
-        fromAddressField.setPromptText("From Address");
-        fromAddressField.setPrefWidth(350);
-        installAutocomplete(fromAddressField, true);
-        fromBox.getChildren().addAll(fromLabel, fromAddressField);
+        Label helperLabel = new Label("Nhap dia chi theo tung phan. Khi go chu, he thong se goi y dia chi de dien nhanh.");
+        helperLabel.setWrapText(true);
+        helperLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #526277;");
 
-        HBox toBox = new HBox(10);
-        toBox.setAlignment(Pos.CENTER_LEFT);
-        Label toLabel = new Label("To:");
-        toLabel.setPrefWidth(60);
-        toAddressField = new TextField();
-        toAddressField.setPromptText("To Address");
-        toAddressField.setPrefWidth(350);
-        installAutocomplete(toAddressField, false);
-        toBox.getChildren().addAll(toLabel, toAddressField);
+        VBox fromAddressBox = createAddressComponentBox("Diem bat dau", true);
+        VBox toAddressBox = createAddressComponentBox("Diem ket thuc", false);
 
         HBox actionBox = new HBox(10);
         actionBox.setAlignment(Pos.CENTER_LEFT);
@@ -111,8 +115,91 @@ public class BatchCreationPanel extends VBox {
 
         actionBox.getChildren().addAll(previewButton, loadButton, createButton);
 
-        box.getChildren().addAll(fromBox, toBox, actionBox);
+        box.getChildren().addAll(helperLabel, fromAddressBox, toAddressBox, actionBox);
         return box;
+    }
+
+    private VBox createAddressComponentBox(String title, boolean isFromField) {
+        VBox box = new VBox(10);
+        box.setStyle("-fx-border-color: #d7deea; -fx-border-width: 1; -fx-padding: 12; -fx-background-color: #ffffff;");
+
+        Label titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #243447;");
+
+        Label subtitleLabel = new Label("Co the nhap ten duong, phuong, quan hoac thanh pho. Chon mot goi y de dien tu dong.");
+        subtitleLabel.setWrapText(true);
+        subtitleLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #6b7a90;");
+
+        GridPane formGrid = new GridPane();
+        formGrid.setHgap(10);
+        formGrid.setVgap(10);
+
+        Label streetLabel = createFieldLabel("Ten duong");
+        TextField streetField = createAddressField("VD: Nguyen Trai");
+
+        Label numberLabel = createFieldLabel("So nha");
+        TextField numberField = createAddressField("VD: 123");
+
+        Label wardLabel = createFieldLabel("Phuong / Xa");
+        TextField wardField = createAddressField("VD: Phuong Ben Thanh");
+
+        Label districtLabel = createFieldLabel("Quan / Huyen");
+        TextField districtField = createAddressField("VD: Quan 1");
+
+        Label cityLabel = createFieldLabel("Tinh / Thanh pho");
+        TextField cityField = createAddressField("VD: TP Ho Chi Minh");
+
+        HBox streetNumberBox = new HBox(10, streetField, numberField);
+        HBox.setHgrow(streetField, Priority.ALWAYS);
+        numberField.setPrefWidth(170);
+        numberField.setMinWidth(150);
+        numberField.setMaxWidth(220);
+
+        formGrid.add(streetLabel, 0, 0);
+        formGrid.add(streetNumberBox, 1, 0);
+        formGrid.add(wardLabel, 0, 1);
+        formGrid.add(wardField, 1, 1);
+        formGrid.add(districtLabel, 0, 2);
+        formGrid.add(districtField, 1, 2);
+        formGrid.add(cityLabel, 0, 3);
+        formGrid.add(cityField, 1, 3);
+
+        AddressSection section = new AddressSection(title, streetField, numberField, wardField, districtField, cityField);
+        installAutocomplete(section);
+
+        if (isFromField) {
+            fromStreetField = streetField;
+            fromNumberField = numberField;
+            fromWardField = wardField;
+            fromDistrictField = districtField;
+            fromCityField = cityField;
+        } else {
+            toStreetField = streetField;
+            toNumberField = numberField;
+            toWardField = wardField;
+            toDistrictField = districtField;
+            toCityField = cityField;
+        }
+
+        box.getChildren().addAll(titleLabel, subtitleLabel, formGrid);
+        return box;
+    }
+
+    private Label createFieldLabel(String text) {
+        Label label = new Label(text);
+        label.setMinWidth(110);
+        label.setPrefWidth(110);
+        label.setWrapText(true);
+        label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #41536a;");
+        return label;
+    }
+
+    private TextField createAddressField(String promptText) {
+        TextField field = new TextField();
+        field.setPromptText(promptText);
+        field.setPrefWidth(320);
+        field.setMaxWidth(Double.MAX_VALUE);
+        return field;
     }
 
     private VBox createOrderSection() {
@@ -124,6 +211,12 @@ public class BatchCreationPanel extends VBox {
 
         routeSummaryLabel = new Label("Nhap dia chi de preview route va load orders...");
         routeSummaryLabel.setWrapText(true);
+
+        routeListLabel = new Label("Chua co tuyen duong de chon.");
+        routeListLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #526277;");
+
+        routeListBox = new VBox(6);
+        routeListBox.setPadding(new Insets(2, 0, 4, 0));
 
         HBox selectionActions = new HBox(8);
         selectionActions.setAlignment(Pos.CENTER_LEFT);
@@ -145,134 +238,110 @@ public class BatchCreationPanel extends VBox {
 
         ScrollPane orderScroll = new ScrollPane(orderListBox);
         orderScroll.setFitToWidth(true);
-        orderScroll.setPrefHeight(220);
+        orderScroll.setPrefHeight(280);
+        orderScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
 
         statusLabel = new Label("San sang");
         statusLabel.setStyle("-fx-font-size: 10px;");
 
-        box.getChildren().addAll(sectionLabel, routeSummaryLabel, selectionActions, orderScroll, statusLabel);
+        box.getChildren().addAll(sectionLabel, routeSummaryLabel, routeListLabel, routeListBox, selectionActions, orderScroll, statusLabel);
         VBox.setVgrow(orderScroll, Priority.ALWAYS);
         renderEmptyOrders("Chua co du lieu order.");
         return box;
     }
 
-    private void installAutocomplete(TextField field, boolean isFromField) {
-        ContextMenu suggestionsPopup = new ContextMenu();
-        PauseTransition debounce = new PauseTransition(Duration.millis(350));
-
-        field.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (isFromField) {
-                selectedFromSuggestion = null;
-            } else {
-                selectedToSuggestion = null;
-            }
-
-            suggestionsPopup.hide();
-            debounce.stop();
-            if (newValue == null || newValue.isBlank() || newValue.trim().length() < 3) {
-                return;
-            }
-
-            debounce.setOnFinished(event -> loadSuggestions(field, suggestionsPopup, newValue.trim(), isFromField));
-            debounce.playFromStart();
-        });
-
-        field.focusedProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue) {
-                suggestionsPopup.hide();
-            }
-        });
-    }
-
-    private void loadSuggestions(TextField field, ContextMenu popup, String keyword, boolean isFromField) {
-        new Thread(() -> {
-            try {
-                List<AddressSuggestion> suggestions = addressSuggestService.suggest(keyword);
-                Platform.runLater(() -> showSuggestions(field, popup, suggestions, isFromField));
-            } catch (Exception ex) {
-                Platform.runLater(popup::hide);
-            }
-        }).start();
-    }
-
-    private void showSuggestions(TextField field, ContextMenu popup, List<AddressSuggestion> suggestions, boolean isFromField) {
-        popup.getItems().clear();
-
-        if (suggestions.isEmpty()) {
-            popup.hide();
-            return;
-        }
-
-        for (AddressSuggestion suggestion : suggestions) {
-            Label label = new Label(suggestion.getDisplayText());
-            label.setWrapText(true);
-            label.setMaxWidth(320);
-
-            CustomMenuItem item = new CustomMenuItem(label, true);
-            item.setOnAction(event -> {
-                field.setText(suggestion.getDisplayText());
-                if (isFromField) {
-                    selectedFromSuggestion = suggestion;
-                } else {
-                    selectedToSuggestion = suggestion;
-                }
-                popup.hide();
-            });
-            popup.getItems().add(item);
-        }
-
-        if (!popup.isShowing()) {
-            popup.show(field, javafx.geometry.Side.BOTTOM, 0, 0);
-        }
-    }
-
     private void previewRoute() {
-        String from = fromAddressField.getText();
-        String to = toAddressField.getText();
-        if (isInvalidAddressInput(from, to)) {
+        if (isInvalidAddressInput()) {
             return;
         }
 
+        appLog("Dang preview tuyen duong...");
+        Logger.log("BATCH_UI", "Preview route: " + buildFullAddressText(fromStreetField, fromNumberField, fromWardField, fromDistrictField, fromCityField)
+                + " -> " + buildFullAddressText(toStreetField, toNumberField, toWardField, toDistrictField, toCityField));
         statusLabel.setText("Dang preview route...");
         statusLabel.setStyle("-fx-text-fill: #FF9800;");
 
         new Thread(() -> {
             try {
-                Route route = routeBuilderService.previewRoute(from, to);
-                currentRoute = route;
+                LatLng fromLatLng = routeBuilderService.getGeoService().geocodeStructured(
+                        fromStreetField.getText(), fromNumberField.getText(),
+                        fromWardField.getText(), fromDistrictField.getText(), fromCityField.getText()
+                );
+                LatLng toLatLng = routeBuilderService.getGeoService().geocodeStructured(
+                        toStreetField.getText(), toNumberField.getText(),
+                        toWardField.getText(), toDistrictField.getText(), toCityField.getText()
+                );
+
+                List<Route> routes = routeBuilderService.getRouteService().getAlternativeRoutes(fromLatLng, toLatLng);
+                if (routes.isEmpty()) {
+                    throw new IllegalStateException("Khong tim thay route");
+                }
+                previewRoutes = new ArrayList<>(routes);
+                selectedRouteIndex = 0;
+                currentRoute = previewRoutes.getFirst();
                 Platform.runLater(() -> {
-                    routeSummaryLabel.setText("Route ready\n"
-                            + "Distance: " + String.format("%.2f km", route.getDistanceMeters() / 1000.0) + "\n"
-                            + "Duration: " + String.format("%.1f min", route.getDurationSeconds() / 60.0) + "\n"
-                            + "Polyline points: " + route.getPolyline().size());
+                    renderRouteOptions();
+                    GoogleMapsPanel.showRoutePreview(previewRoutes, selectedRouteIndex);
+                    GoogleMapsPanel.showPreviewOrders(List.of());
+                    updateRouteSummary(currentRoute);
                     statusLabel.setText("Preview route thanh cong");
                     statusLabel.setStyle("-fx-text-fill: #4CAF50;");
+                    appLog("Preview route thanh cong: " + previewRoutes.size() + " tuyen");
                 });
+                Logger.log("BATCH_UI", "Preview route thanh cong voi " + previewRoutes.size() + " route option(s)");
             } catch (Exception ex) {
-                Platform.runLater(() -> showError("Khong preview duoc route: " + ex.getMessage()));
+                Logger.error("BATCH_UI", "Preview route that bai: " + ex.getMessage());
+                Platform.runLater(() -> {
+                    showError("Khong preview duoc route: " + ex.getMessage());
+                    appLog("Preview route that bai");
+                });
             }
         }).start();
     }
 
     private void loadOrders() {
-        String from = fromAddressField.getText();
-        String to = toAddressField.getText();
-        if (isInvalidAddressInput(from, to)) {
+        if (isInvalidAddressInput()) {
             return;
         }
 
         statusLabel.setText("Dang load orders...");
         statusLabel.setStyle("-fx-text-fill: #FF9800;");
         createButton.setDisable(true);
+        appLog("Dang tai danh sach order tren tuyen...");
+        Logger.log("BATCH_UI", "Load orders along route bat dau");
 
         new Thread(() -> {
             try {
-                Route route = currentRoute != null ? currentRoute : routeBuilderService.previewRoute(from, to);
+                Route route = currentRoute;
+                if (route == null) {
+                    LatLng fromLatLng = routeBuilderService.getGeoService().geocodeStructured(
+                            fromStreetField.getText(), fromNumberField.getText(),
+                            fromWardField.getText(), fromDistrictField.getText(), fromCityField.getText()
+                    );
+                    LatLng toLatLng = routeBuilderService.getGeoService().geocodeStructured(
+                            toStreetField.getText(), toNumberField.getText(),
+                            toWardField.getText(), toDistrictField.getText(), toCityField.getText()
+                    );
+                    previewRoutes = new ArrayList<>(routeBuilderService.getRouteService().getAlternativeRoutes(fromLatLng, toLatLng));
+                    selectedRouteIndex = 0;
+                    route = previewRoutes.getFirst();
+                }
                 currentRoute = route;
                 List<Order> orders = orderService.findOrdersAlongRoute(route, ORDER_SEARCH_RADIUS_KM);
-                Platform.runLater(() -> updateLoadedOrders(orders));
+                Logger.log("BATCH_UI", "Load orders xong: " + orders.size() + " order hop le");
+                Platform.runLater(() -> {
+                    renderRouteOptions();
+                    GoogleMapsPanel.showRoutePreview(previewRoutes, selectedRouteIndex);
+                    GoogleMapsPanel.showPreviewOrders(orders);
+                    updateLoadedOrders(orders);
+                    appLog("Da tim thay " + orders.size() + " order phu hop");
+                });
             } catch (Exception ex) {
-                Platform.runLater(() -> showError("Khong load duoc orders: " + ex.getMessage()));
+                Logger.error("BATCH_UI", "Load orders that bai: " + ex.getMessage());
+                Platform.runLater(() -> {
+                    showError("Khong load duoc orders: " + ex.getMessage());
+                    appLog("Load orders that bai");
+                });
             }
         }).start();
     }
@@ -295,26 +364,39 @@ public class BatchCreationPanel extends VBox {
 
         statusLabel.setText("Dang tao batch...");
         statusLabel.setStyle("-fx-text-fill: #FF9800;");
+        appLog("Dang tao batch voi " + selectedOrders.size() + " order");
+        Logger.log("BATCH_UI", "Create batch voi " + selectedOrders.size() + " order da chon");
 
         new Thread(() -> {
             try {
                 Batch batch = batchService.createBatch(selectedOrders);
+                Logger.log("BATCH_UI", "Create batch thanh cong: batchId=" + batch.getId());
                 Platform.runLater(() -> {
+                    GoogleMapsPanel.clearRoutePreview();
                     statusLabel.setText("Tao batch " + batch.getId() + " thanh cong voi " + batch.getOrderCount() + " order");
                     statusLabel.setStyle("-fx-text-fill: #4CAF50;");
                     routeSummaryLabel.setText("Batch " + batch.getId() + " da duoc tao.");
+                    routeListLabel.setText("Chua co tuyen duong de chon.");
+                    routeListBox.getChildren().clear();
                     clearLoadedOrdersAfterCreate();
                     ShipperTrackingService.getInstance().refreshData();
+                    appLog("Tao batch #" + batch.getId() + " thanh cong");
                 });
             } catch (Exception ex) {
-                Platform.runLater(() -> showError("Tao batch that bai: " + ex.getMessage()));
+                Logger.error("BATCH_UI", "Create batch that bai: " + ex.getMessage());
+                Platform.runLater(() -> {
+                    showError("Tao batch that bai: " + ex.getMessage());
+                    appLog("Tao batch that bai");
+                });
             }
         }).start();
     }
 
-    private boolean isInvalidAddressInput(String from, String to) {
-        if (from == null || from.isBlank() || to == null || to.isBlank()) {
-            showError("Vui long nhap day du from/to address");
+    private boolean isInvalidAddressInput() {
+        String fromCity = fromCityField.getText();
+        String toCity = toCityField.getText();
+        if (fromCity == null || fromCity.isBlank() || toCity == null || toCity.isBlank()) {
+            showError("Vui long nhap day du from/to city field");
             return true;
         }
         return false;
@@ -326,7 +408,8 @@ public class BatchCreationPanel extends VBox {
         orderListBox.getChildren().clear();
 
         if (orders.isEmpty()) {
-            renderEmptyOrders("Khong co order nam trong ban kinh 5 km quanh route.");
+            GoogleMapsPanel.showPreviewOrders(List.of());
+            renderEmptyOrders("Khong co order nam trong pham vi 0.5 km quanh route.");
             showError("Khong tim thay order phu hop");
             return;
         }
@@ -411,11 +494,244 @@ public class BatchCreationPanel extends VBox {
     private void clearLoadedOrdersAfterCreate() {
         loadedOrders = new ArrayList<>();
         orderSelections.clear();
+        previewRoutes = new ArrayList<>();
+        selectedRouteIndex = 0;
+        currentRoute = null;
         renderEmptyOrders("Batch da duoc tao. Load route de tim orders moi.");
     }
 
     private void showError(String message) {
         statusLabel.setText(message);
         statusLabel.setStyle("-fx-text-fill: #f44336;");
+        Logger.error("BATCH_UI", message);
+    }
+
+    private void appLog(String message) {
+        LogPanel.getInstance().log(message);
+    }
+
+    private void installAutocomplete(AddressSection section) {
+        installAutocompleteOnField(section, section.streetField());
+        installAutocompleteOnField(section, section.numberField());
+        installAutocompleteOnField(section, section.wardField());
+        installAutocompleteOnField(section, section.districtField());
+        installAutocompleteOnField(section, section.cityField());
+    }
+
+    private void installAutocompleteOnField(AddressSection section, TextField field) {
+        field.textProperty().addListener((obs, oldValue, newValue) -> {
+            section.debounce().stop();
+            section.popup().hide();
+
+            if (newValue == null || newValue.isBlank() || newValue.trim().length() < 2) {
+                return;
+            }
+
+            section.debounce().setOnFinished(event -> loadSuggestions(section, field));
+            section.debounce().playFromStart();
+        });
+
+        field.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (!focused) {
+                section.debounce().stop();
+            }
+        });
+    }
+
+    private void loadSuggestions(AddressSection section, TextField activeField) {
+        String keyword = buildSuggestionKeyword(section, activeField);
+        if (keyword.length() < 2) {
+            return;
+        }
+
+        Logger.debug("BATCH_UI", "Suggest address for " + section.sectionName() + ": " + keyword);
+        new Thread(() -> {
+            try {
+                List<AddressSuggestion> suggestions = addressSuggestService.suggest(keyword);
+                Platform.runLater(() -> showSuggestions(section, activeField, suggestions));
+            } catch (Exception ex) {
+                Logger.error("BATCH_UI", "Suggest address that bai: " + ex.getMessage());
+                Platform.runLater(section.popup()::hide);
+            }
+        }).start();
+    }
+
+    private void showSuggestions(AddressSection section, TextField activeField, List<AddressSuggestion> suggestions) {
+        section.popup().getItems().clear();
+        if (suggestions.isEmpty()) {
+            section.popup().hide();
+            return;
+        }
+
+        for (AddressSuggestion suggestion : suggestions) {
+            VBox itemBox = new VBox(2);
+            Label title = new Label(suggestion.getDisplayText());
+            title.setWrapText(true);
+            title.setMaxWidth(380);
+            title.setStyle("-fx-font-size: 12px; -fx-font-weight: bold;");
+
+            Label meta = new Label(buildSuggestionMeta(suggestion));
+            meta.setWrapText(true);
+            meta.setStyle("-fx-font-size: 10px; -fx-text-fill: #607086;");
+
+            itemBox.getChildren().addAll(title, meta);
+
+            CustomMenuItem item = new CustomMenuItem(itemBox, true);
+            item.setOnAction(event -> applySuggestion(section, suggestion));
+            section.popup().getItems().add(item);
+        }
+
+        if (!section.popup().isShowing()) {
+            section.popup().show(activeField, javafx.geometry.Side.BOTTOM, 0, 0);
+        }
+    }
+
+    private void applySuggestion(AddressSection section, AddressSuggestion suggestion) {
+        if (!suggestion.getStreet().isBlank()) {
+            section.streetField().setText(suggestion.getStreet());
+        } else if (section.streetField().getText().isBlank()) {
+            section.streetField().setText(suggestion.getDisplayText());
+        }
+        if (!suggestion.getNumber().isBlank()) {
+            section.numberField().setText(suggestion.getNumber());
+        }
+        if (!suggestion.getWard().isBlank()) {
+            section.wardField().setText(suggestion.getWard());
+        }
+        if (!suggestion.getDistrict().isBlank()) {
+            section.districtField().setText(suggestion.getDistrict());
+        }
+        if (!suggestion.getCity().isBlank()) {
+            section.cityField().setText(suggestion.getCity());
+        }
+
+        section.popup().hide();
+        Logger.log("BATCH_UI", "Da chon goi y dia chi cho " + section.sectionName() + ": " + suggestion.getDisplayText());
+    }
+
+    private String buildSuggestionKeyword(AddressSection section, TextField activeField) {
+        List<String> parts = new ArrayList<>();
+        String activeValue = activeField.getText();
+        if (activeValue != null && !activeValue.isBlank()) {
+            parts.add(activeValue.trim());
+        }
+        addIfPresent(parts, section.streetField().getText(), activeField != section.streetField());
+        addIfPresent(parts, section.numberField().getText(), activeField != section.numberField());
+        addIfPresent(parts, section.wardField().getText(), activeField != section.wardField());
+        addIfPresent(parts, section.districtField().getText(), activeField != section.districtField());
+        addIfPresent(parts, section.cityField().getText(), activeField != section.cityField());
+        return String.join(", ", parts);
+    }
+
+    private String buildSuggestionMeta(AddressSuggestion suggestion) {
+        List<String> parts = new ArrayList<>();
+        addIfPresent(parts, suggestion.getStreet());
+        addIfPresent(parts, suggestion.getWard());
+        addIfPresent(parts, suggestion.getDistrict());
+        addIfPresent(parts, suggestion.getCity());
+        return parts.isEmpty() ? "Nhan de dien vao form" : String.join(" | ", parts);
+    }
+
+    private String buildFullAddressText(TextField street, TextField number, TextField ward, TextField district, TextField city) {
+        List<String> parts = new ArrayList<>();
+        String streetText = street.getText() == null ? "" : street.getText().trim();
+        String numberText = number.getText() == null ? "" : number.getText().trim();
+        if (!numberText.isBlank() || !streetText.isBlank()) {
+            parts.add((numberText + " " + streetText).trim());
+        }
+        addIfPresent(parts, ward.getText());
+        addIfPresent(parts, district.getText());
+        addIfPresent(parts, city.getText());
+        return String.join(", ", parts);
+    }
+
+    private void addIfPresent(List<String> parts, String value) {
+        addIfPresent(parts, value, true);
+    }
+
+    private void addIfPresent(List<String> parts, String value, boolean include) {
+        if (include && value != null && !value.isBlank()) {
+            parts.add(value.trim());
+        }
+    }
+
+    private record AddressSection(
+            String sectionName,
+            TextField streetField,
+            TextField numberField,
+            TextField wardField,
+            TextField districtField,
+            TextField cityField,
+            ContextMenu popup,
+            PauseTransition debounce
+    ) {
+        AddressSection(String sectionName, TextField streetField, TextField numberField, TextField wardField,
+                       TextField districtField, TextField cityField) {
+            this(sectionName, streetField, numberField, wardField, districtField, cityField, new ContextMenu(),
+                    new PauseTransition(Duration.millis(300)));
+        }
+    }
+
+    private void renderRouteOptions() {
+        routeListBox.getChildren().clear();
+        if (previewRoutes.isEmpty()) {
+            routeListLabel.setText("Chua co tuyen duong de chon.");
+            return;
+        }
+
+        routeListLabel.setText("Chon 1 trong " + previewRoutes.size() + " tuyen duong goi y:");
+        for (int i = 0; i < previewRoutes.size(); i++) {
+            routeListBox.getChildren().add(createRouteOptionCard(previewRoutes.get(i), i));
+        }
+    }
+
+    private VBox createRouteOptionCard(Route route, int index) {
+        boolean selected = index == selectedRouteIndex;
+        VBox card = new VBox(4);
+        card.setPadding(new Insets(8));
+        card.setStyle(selected
+                ? "-fx-background-color: #e8f1ff; -fx-border-color: #1d70b8; -fx-border-width: 2;"
+                : "-fx-background-color: #ffffff; -fx-border-color: #d6dde8; -fx-border-width: 1;");
+        card.setOnMouseClicked(event -> selectRoute(index));
+
+        Label title = new Label("Route " + (index + 1));
+        title.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+
+        Label meta = new Label(formatRouteMeta(route));
+        meta.setStyle("-fx-font-size: 11px; -fx-text-fill: #526277;");
+
+        Label hint = new Label(selected ? "Dang duoc chon" : "Nhan de chon tuyen nay");
+        hint.setStyle("-fx-font-size: 10px; -fx-text-fill: " + (selected ? "#1d70b8" : "#77869b") + ";");
+
+        card.getChildren().addAll(title, meta, hint);
+        return card;
+    }
+
+    private void selectRoute(int index) {
+        if (index < 0 || index >= previewRoutes.size()) {
+            return;
+        }
+        selectedRouteIndex = index;
+        currentRoute = previewRoutes.get(index);
+        renderRouteOptions();
+        updateRouteSummary(currentRoute);
+        GoogleMapsPanel.showRoutePreview(previewRoutes, selectedRouteIndex);
+        if (!loadedOrders.isEmpty()) {
+            GoogleMapsPanel.showPreviewOrders(loadedOrders);
+        }
+        appLog("Da chon Route " + (index + 1));
+    }
+
+    private void updateRouteSummary(Route route) {
+        routeSummaryLabel.setText("Route ready\n"
+                + "Distance: " + String.format("%.2f km", route.getDistanceMeters() / 1000.0) + "\n"
+                + "Duration: " + String.format("%.1f min", route.getDurationSeconds() / 60.0) + "\n"
+                + "Polyline points: " + route.getPolyline().size());
+    }
+
+    private String formatRouteMeta(Route route) {
+        return String.format("%.1f min - %.2f km",
+                route.getDurationSeconds() / 60.0,
+                route.getDistanceMeters() / 1000.0);
     }
 }

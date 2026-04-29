@@ -34,8 +34,6 @@ public class Logger {
                 timestamp, module, level.name(), removeVietnameseDiacritics(message));
 
         System.out.println(formattedMessage);
-
-        // TODO: Also send to UI log panel when available
     }
 
     /**

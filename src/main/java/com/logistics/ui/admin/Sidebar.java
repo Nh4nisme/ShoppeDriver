@@ -32,7 +32,8 @@ public class Sidebar extends VBox implements DataChangeListener {
     private Integer selectedBatchId;
 
     public Sidebar() {
-        this.setPrefWidth(380);
+        this.setPrefWidth(500);
+        this.setMinWidth(500);
         this.setStyle("-fx-background-color: #ecf0f1;");
 
         Label titleLabel = new Label("Quan ly Batch");
@@ -54,6 +55,10 @@ public class Sidebar extends VBox implements DataChangeListener {
         followTab.setText("Theo doi Batch");
         this.followBatchPanel = new FollowBatchPanel();
         followTab.setContent(followBatchPanel);
+
+        Tab chatTab = new Tab();
+        chatTab.setText("Chat");
+        chatTab.setContent(new AdminChatPanel());
 
         Tab listTab = new Tab();
         listTab.setText("Danh sach Batch");
@@ -85,7 +90,7 @@ public class Sidebar extends VBox implements DataChangeListener {
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         listTab.setContent(listContent);
 
-        tabPane.getTabs().addAll(creationTab, assignmentTab, followTab, listTab);
+        tabPane.getTabs().addAll(creationTab, assignmentTab, followTab, chatTab, listTab);
 
         this.getChildren().addAll(titleLabel, tabPane);
         VBox.setVgrow(tabPane, Priority.ALWAYS);
