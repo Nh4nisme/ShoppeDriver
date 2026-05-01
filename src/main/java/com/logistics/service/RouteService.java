@@ -21,10 +21,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class RouteService {
     private static final RouteService instance = new RouteService();
+    // Use OpenRouteService (ORS) directions endpoint(s)
     private static final String[] ROUTE_BASE_URLS = {
-            "https://router.project-osrm.org",
-            "https://routing.openstreetmap.de/routed-car"
+            "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
     };
+    // ORS API key: prefer environment variable ORS_API_KEY, fall back to provided key
+    private static final String ORS_API_KEY =
+            System.getenv().getOrDefault("ORS_API_KEY", "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjgzZTJlNjU0M2JhNzRiMWRiM2EzZTdiMTkyYzJiZjY5IiwiaCI6Im11cm11cjY0In0=");
 
     private final HttpClient httpClient;
     private final Map<String, Route> routeCache = new ConcurrentHashMap<>();
@@ -44,7 +47,7 @@ public class RouteService {
         if (routes.isEmpty()) {
             throw new IOException("Route request failed");
         }
-        return routes.getFirst();
+        return routes.get(0);
     }
 
     public List<Route> getAlternativeRoutes(LatLng from, LatLng to) throws IOException, InterruptedException {
@@ -81,46 +84,97 @@ public class RouteService {
     }
 
     private List<Route> fetchRoutes(String baseUrl, LatLng from, LatLng to) throws IOException, InterruptedException {
-        String url = baseUrl + "/route/v1/driving/"
-                + from.longitude() + "," + from.latitude() + ";"
-                + to.longitude() + "," + to.latitude()
-                + "?overview=full&geometries=geojson&alternatives=true&steps=false";
+        // Build ORS POST body with coordinates (lon, lat)
+        String body = "{\"coordinates\":[[" + from.longitude() + "," + from.latitude() + "],[" + to.longitude() + "," + to.latitude() + "]],"
+                + "\"instructions\":false,\"geometry\":true,\"units\":\"m\","
+                + "\"alternative_routes\":{\"target_count\":3,\"share_factor\":0.6}}";
 
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
                 .timeout(Duration.ofSeconds(20))
                 .header("User-Agent", "ShoppeDriver/1.0")
-                .GET()
+                .header("Content-Type", "application/json")
+                .header("Authorization", ORS_API_KEY)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
-            throw new IOException("Route request failed: " + response.statusCode());
+            throw new IOException("Route request failed: " + response.statusCode() + " - " + response.body());
         }
 
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
-        JsonArray routes = root.getAsJsonArray("routes");
-        if (routes == null || routes.isEmpty()) {
-            throw new IOException("No route returned");
-        }
 
         List<Route> routeOptions = new ArrayList<>();
-        for (int routeIndex = 0; routeIndex < routes.size(); routeIndex++) {
-            JsonObject routeObject = routes.get(routeIndex).getAsJsonObject();
-            JsonArray coordinates = routeObject.getAsJsonObject("geometry").getAsJsonArray("coordinates");
 
-            List<LatLng> points = new ArrayList<>();
-            for (int i = 0; i < coordinates.size(); i++) {
-                JsonArray coordinate = coordinates.get(i).getAsJsonArray();
-                points.add(new LatLng(coordinate.get(1).getAsDouble(), coordinate.get(0).getAsDouble()));
+        // ORS returns GeoJSON: features -> each feature has geometry.coordinates and properties.segments
+        if (root.has("features")) {
+            JsonArray features = root.getAsJsonArray("features");
+            for (int i = 0; i < features.size(); i++) {
+                JsonObject feature = features.get(i).getAsJsonObject();
+                JsonObject geometry = feature.getAsJsonObject("geometry");
+                JsonArray coordinates = geometry.getAsJsonArray("coordinates");
+
+                List<LatLng> points = new ArrayList<>();
+                for (int j = 0; j < coordinates.size(); j++) {
+                    JsonArray coord = coordinates.get(j).getAsJsonArray();
+                    points.add(new LatLng(coord.get(1).getAsDouble(), coord.get(0).getAsDouble()));
+                }
+
+                double distance = 0.0;
+                double duration = 0.0;
+                if (feature.has("properties")) {
+                    JsonObject props = feature.getAsJsonObject("properties");
+                    if (props.has("segments")) {
+                        JsonArray segments = props.getAsJsonArray("segments");
+                        if (segments != null && segments.size() > 0) {
+                            JsonObject seg0 = segments.get(0).getAsJsonObject();
+                            if (seg0.has("distance")) distance = seg0.get("distance").getAsDouble();
+                            if (seg0.has("duration")) duration = seg0.get("duration").getAsDouble();
+                        }
+                    } else if (props.has("summary")) {
+                        JsonObject summary = props.getAsJsonObject("summary");
+                        if (summary.has("distance")) distance = summary.get("distance").getAsDouble();
+                        if (summary.has("duration")) duration = summary.get("duration").getAsDouble();
+                    }
+                }
+
+                routeOptions.add(new Route(from, to, points, distance, duration));
+            }
+        }
+
+        // Fallback: OSRM-like responses (routes array)
+        if (routeOptions.isEmpty() && root.has("routes")) {
+            JsonArray routes = root.getAsJsonArray("routes");
+            if (routes == null || routes.isEmpty()) {
+                throw new IOException("No route returned");
             }
 
-            routeOptions.add(new Route(
-                    from,
-                    to,
-                    points,
-                    routeObject.get("distance").getAsDouble(),
-                    routeObject.get("duration").getAsDouble()
-            ));
+            for (int routeIndex = 0; routeIndex < routes.size(); routeIndex++) {
+                JsonObject routeObject = routes.get(routeIndex).getAsJsonObject();
+
+                // geometry may be an object with coordinates or a primitive (encoded polyline) -> prefer coordinates
+                List<LatLng> points = new ArrayList<>();
+                try {
+                    if (routeObject.has("geometry") && routeObject.get("geometry").isJsonObject()) {
+                        JsonArray coordinates = routeObject.getAsJsonObject("geometry").getAsJsonArray("coordinates");
+                        for (int i = 0; i < coordinates.size(); i++) {
+                            JsonArray coordinate = coordinates.get(i).getAsJsonArray();
+                            points.add(new LatLng(coordinate.get(1).getAsDouble(), coordinate.get(0).getAsDouble()));
+                        }
+                    }
+                } catch (Exception ex) {
+                    // ignore and continue; if geometry is encoded polyline we don't decode here
+                }
+
+                double distance = routeObject.has("distance") ? routeObject.get("distance").getAsDouble() : 0.0;
+                double duration = routeObject.has("duration") ? routeObject.get("duration").getAsDouble() : 0.0;
+
+                routeOptions.add(new Route(from, to, points, distance, duration));
+            }
+        }
+
+        if (routeOptions.isEmpty()) {
+            throw new IOException("No route returned");
         }
 
         routeOptions.sort(Comparator
