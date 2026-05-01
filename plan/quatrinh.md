@@ -582,5 +582,67 @@ Thuc hien 3 feature: Route logic fix, Address UI split, va TCP chat.
 ### Ghi chu
 - Day la fix truc tiep cho van de viewport va marker rendering sai vi du lieu shipper cu.
 
+## Prompt 18 - 2026-05-01
+
+### Yeu cau
+- Tao Shipper login UI va launcher, integrate ShipperApp voi login
+- Chat TCP server/client da ton tai - tiep tuc hoan thien
+- Ghi log thay doi vao `plan/quatrinh.md`
+
+### Thay doi
+- Them `ShipperLoginLauncher` la mot Swing-based launcher cho man hinh dang nhap shipper.
+  - Su dung `AuthRepository` va `DBConnection` de xac thuc username/password.
+  - Chi cho phep user co `role = SHIPPER` dang nhap.
+  - Neu dang nhap thanh cong thi goi `ShipperApp.main(<shipperId>)` de mo app shipper.
+- Khong thay doi cac file server/chat da ton tai (ChatServer, ChatClient, ChatMessage), su dung lai cac lop da co.
+
+### File bi anh huong
+- `src/main/java/com/logistics/shipper/ShipperLoginLauncher.java` (NEW)
+- `plan/quatrinh.md` (append log)
+
+### Ghi chu
+- Launcher su dung Swing de don gian hoa viec dang nhap truoc khi khoi tao JavaFX `ShipperApp`.
+- Da re-use `AuthRepository`, `DatabaseInitializer`, `User` va `Logger` tu code hien co.
+- De chay: `java -cp target/classes;path\to\javafx libs com.logistics.shipper.ShipperLoginLauncher` (login dialog se hien thi va goi `ShipperApp`).
+
+## Prompt 19 - 2026-05-01
+
+### Yeu cau
+- Chinh sua UI cua `ShipperApp` theo kieu mobile-like va them cot ben trai hien thi danh sach batch.
+
+### Thay doi
+- Cap nhat `ShipperApp.createUI()`:
+  - Them `batchListView` o cot ben trai (ListView) de hien thi cac batch dang active cua shipper.
+  - Dieu chinh layout thanh mobile-like: header nho, center lam main order list, right la chi tiet + chat.
+  - Khi chon mot batch tren danh sach thi load batch do vao UI chi tiet.
+- Cap nhat `startBatchPolling()`/`checkForNewBatch()` de refresh `batchListView` tu `BatchRepository.findActiveByShipper(shipperId)`.
+
+### File bi anh huong
+- `src/main/java/com/logistics/shipper/ShipperApp.java` (UI update, batch list)
+- `plan/quatrinh.md`
+
+### Ghi chu
+- Khi chay app, cot ben trai se hien cac batch active (ASSIGNED/IN_DELIVERY/COMPLETED). Neu rong thi hien placeholder.
+- Su dung lai `BatchRepository.findActiveByShipper(...)` de cap nhat danh sach.
+
+## Prompt 20 - 2026-05-01
+
+### Yeu cau
+- Thu nho cua so cua `ShipperApp` khong full screen, chi mo o kich thuoc nho hon (khoang nua man hinh) de giao dien gon hon.
+
+### Thay doi
+- Cap nhat `ShipperApp.createUI()`:
+  - Bo cac goi `setMaximized(true)` va `setFullScreen(true)`.
+  - Dat kich thuoc scene va stage thanh 800x700 va centerOnScreen().
+  - De resizable = true de nguoi dung co the thay doi kich thuoc tuong ung.
+
+### File bi anh huong
+- `src/main/java/com/logistics/shipper/ShipperApp.java`
+- `plan/quatrinh.md`
+
+### Ghi chu
+- Muc tieu: GUI shipper hien nho gon hon va tu nhien hon so voi admin fullscreen. Van giu layout mobile-like va cot ben trai hien thi batch.
+
+
 
 
