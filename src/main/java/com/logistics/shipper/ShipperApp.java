@@ -15,6 +15,8 @@ import com.logistics.util.Logger;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+ import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -39,6 +41,7 @@ public class ShipperApp extends Application {
     // UI Components
     private Label shipperInfoLabel;
     private ListView<String> orderListView;
+    private ListView<String> batchListView;
     private TextArea orderDetailArea;
     private Button startDeliveryButton;
     private Button deliverNextButton;
@@ -107,31 +110,42 @@ public class ShipperApp extends Application {
         stage.setTitle("ShippeDriver - " + shipperName);
 
         BorderPane root = new BorderPane();
-
-        // Top: Shipper info
+        // Top: Shipper info (mobile-like header)
         shipperInfoLabel = new Label("Shipper: " + shipperName + " - Chưa có batch");
-        shipperInfoLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-        BorderPane.setMargin(shipperInfoLabel, new Insets(10));
+        shipperInfoLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 8 0 8 8;");
+        BorderPane.setMargin(shipperInfoLabel, new Insets(6));
         root.setTop(shipperInfoLabel);
 
-        // Center: Order list
+        // Left: Batch list (new column) - mobile-like narrow column
+        batchListView = new ListView<>();
+        batchListView.setPrefWidth(220);
+        batchListView.setPlaceholder(new Label("No batches"));
+        VBox leftBox = new VBox(6);
+        Label batchesLabel = new Label("Your Batches");
+        batchesLabel.setStyle("-fx-font-weight: bold; -fx-padding: 6; -fx-font-size: 12px;");
+        leftBox.getChildren().addAll(batchesLabel, batchListView);
+        leftBox.setPadding(new Insets(6));
+        root.setLeft(leftBox);
+
+        // Center: Order list (main content) - larger for mobile view
         orderListView = new ListView<>();
-        orderListView.setPrefHeight(200);
+        orderListView.setPrefHeight(300);
+        orderListView.setStyle("-fx-font-size: 13px;");
         root.setCenter(orderListView);
 
-        // Right: Order details
+        // Right: Order details + chat (stacked) - on mobile this acts like a detail pane
         orderDetailArea = new TextArea();
         orderDetailArea.setEditable(false);
         orderDetailArea.setPromptText("Chi tiết đơn hàng sẽ hiển thị ở đây");
-        orderDetailArea.setPrefWidth(250);
+        orderDetailArea.setPrefWidth(300);
         orderDetailArea.setPrefHeight(180);
 
         ChatPanel chatPanel = new ChatPanel();
-        chatPanel.setPrefWidth(300);
+        chatPanel.setPrefWidth(320);
         chatPanel.setPrefHeight(260);
 
         VBox rightBox = new VBox(8, orderDetailArea, chatPanel);
-        rightBox.setPadding(new Insets(0, 10, 0, 10));
+        rightBox.setPadding(new Insets(6));
         root.setRight(rightBox);
 
         // Bottom: Controls and progress
@@ -165,11 +179,33 @@ public class ShipperApp extends Application {
             }
         });
 
-        Scene scene = new Scene(root, 600, 500);
+        // When user selects a batch on the left, load that batch into view
+        batchListView.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
+            int idx = newVal.intValue();
+            if (idx >= 0) {
+                // fetch active batches and pick by index
+                try {
+                    var batches = batchRepository.findActiveByShipper(shipperId);
+                    if (idx < batches.size()) {
+                        currentBatch = batches.get(idx);
+                        currentOrders = currentBatch.getOrders();
+                        currentOrderIndex = 0;
+                        updateUIForNewBatch();
+                    }
+                } catch (Exception e) {
+                    Logger.error("SHIPPER", "Loi load batch tu list: " + e.getMessage());
+                }
+            }
+        });
+
+        // Use a compact window (approx half of typical admin width) instead of fullscreen
+        Scene scene = new Scene(root, 800, 700);
         stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-        stage.setFullScreenExitHint("");
+        stage.setResizable(true);
+        // Do not maximize/fullscreen for shipper app — keep a mobile-like compact window
+        stage.setWidth(800);
+        stage.setHeight(700);
+        stage.centerOnScreen();
         stage.setOnCloseRequest(e -> {
             Logger.log("SHIPPER", "Đóng ứng dụng shipper: " + shipperName);
             if (chatClient != null) {
@@ -202,6 +238,7 @@ public class ShipperApp extends Application {
     }
 
     private void checkForNewBatch() {
+        // Load currently assigned batch (single) as before
         Batch assignedBatch = batchRepository.findByShipperAndStatus(shipperId, BatchStatus.ASSIGNED);
 
         if (assignedBatch != null && (currentBatch == null || currentBatch.getId() != assignedBatch.getId())) {
@@ -213,9 +250,30 @@ public class ShipperApp extends Application {
             Logger.log("SHIPPER", "Nhận batch " + assignedBatch.getId() + " với " + currentOrders.size() + " đơn");
 
             // Update UI
+            javafx.application.Platform.runLater(() -> updateUIForNewBatch());
+        }
+
+        // Additionally update the left-side batch list (active batches)
+        try {
+            var batches = batchRepository.findActiveByShipper(shipperId);
             javafx.application.Platform.runLater(() -> {
-                updateUIForNewBatch();
+                updateBatchListUI(batches);
             });
+        } catch (Exception e) {
+            Logger.error("SHIPPER", "Loi lay danh sach batch: " + e.getMessage());
+        }
+    }
+
+    private void updateBatchListUI(java.util.List<Batch> batches) {
+        if (batchListView == null) return;
+        ObservableList<String> items = FXCollections.observableArrayList();
+        for (Batch b : batches) {
+            String label = "#" + b.getId() + " - " + b.getOrders().size() + " orders - " + b.getStatus();
+            items.add(label);
+        }
+        batchListView.setItems(items);
+        if (items.isEmpty()) {
+            batchListView.setPlaceholder(new Label("No batches assigned"));
         }
     }
 
