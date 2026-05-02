@@ -1,57 +1,33 @@
 package com.logistics.model;
 
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
+@Entity
+@Table(name = "batch")
+@Data
+@NoArgsConstructor
 public class Batch implements Serializable {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    private final List<Order> orders;
-    private final AtomicReference<BatchStatus> status;
+
+    @OneToMany(mappedBy = "batch", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Order> orders = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    private BatchStatus status;
+
+    @Column(name = "shipper_id")
     private int shipperId;
 
-    public Batch() {
-        this.orders = Collections.synchronizedList(new ArrayList<>());
-        this.status = new AtomicReference<>(BatchStatus.PENDING);
-    }
 
-    public Batch(int id) {
-        this.id = id;
-        this.orders = Collections.synchronizedList(new ArrayList<>());
-        this.status = new AtomicReference<>(BatchStatus.PENDING);
-        this.shipperId = 0;
-    }
 
-    public int getId() {return id;}
 
-    public List<Order> getOrders() {
-        return new ArrayList<>(orders);
-    }
-
-    public void addOrder(Order order) {
-        orders.add(order);
-    }
-
-    public void setOrders(List<Order> orders) {
-        this.orders.clear();
-        this.orders.addAll(orders);
-    }
-
-    public BatchStatus getStatus() {
-        return status.get();
-    }
-
-    public void setStatus(BatchStatus newStatus) {
-        this.status.set(newStatus);
-    }
-
-    public int getShipperId() {
-        return shipperId;
-    }
-
-    public void setShipperId(int shipperId) {
-        this.shipperId = shipperId;
-    }
 
     public int getOrderCount() {
         return orders.size();
@@ -63,17 +39,5 @@ public class Batch implements Serializable {
                 .count();
     }
 
-    @Override
-    public String toString() {
-        return "Batch{" +
-                "id='" + id + '\'' +
-                ", orders=" + orders.size() +
-                ", status=" + status.get() +
-                ", shipperId='" + shipperId + '\'' +
-                '}';
-    }
 
-    public void setId(int id) {
-        this.id = id;
-    }
 }

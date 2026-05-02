@@ -4,7 +4,9 @@ import com.logistics.model.Batch;
 import com.logistics.model.BatchStatus;
 import com.logistics.model.Shipper;
 import com.logistics.repository.BatchRepository;
+import com.logistics.repository.BatchRepositoryImpl;
 import com.logistics.repository.ShipperRepository;
+import com.logistics.repository.ShipperRepositoryImpl;
 import com.logistics.util.DataChangeListener;
 import com.logistics.util.Logger;
 
@@ -21,8 +23,8 @@ public class ShipperTrackingService {
     private volatile boolean running = false;
 
     private ShipperTrackingService() {
-        this.shipperRepository = new ShipperRepository();
-        this.batchRepository = new BatchRepository();
+        this.shipperRepository = new ShipperRepositoryImpl();
+        this.batchRepository = new BatchRepositoryImpl();
     }
 
     public static ShipperTrackingService getInstance() {

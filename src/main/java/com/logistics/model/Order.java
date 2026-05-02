@@ -1,54 +1,49 @@
 package com.logistics.model;
 
-import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicReference;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+import java.util.Date;
+
+@Entity
+@Table(name = "orders")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Order implements Serializable {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
+
     private double x;
     private double y;
+
+    @Column(name = "customer_name")
+    private String customerName;
+
     private String address;
-    private final AtomicReference<OrderStatus> status;
+    private String phone;
 
-    public Order(int id, double x, double y) {
-        this.id = id;
-        this.x = x;
-        this.y = y;
-        this.status = new AtomicReference<>(OrderStatus.PENDING);
-    }
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
 
-    public Order() {
-        this(0, 0, 0);
-    }
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "created_at")
+    private Date createdAt;
 
-    public Order(double x, double y) {
-        this(0, x, y);
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id")
+    private Batch batch;
 
-    public int getId() {
-        return id;
-    }
 
-    public void setId(int id) {
-        this.id = id;
-    }
 
-    public double getX() {
-        return x;
-    }
 
-    public void setX(double x) {
-        this.x = x;
-    }
 
-    public double getY() {
-        return y;
-    }
 
-    public void setY(double y) {
-        this.y = y;
-    }
-
+    // Keep latitude/longitude aliases
     public double getLatitude() {
         return x;
     }
@@ -65,30 +60,5 @@ public class Order implements Serializable {
         this.y = longitude;
     }
 
-    public String getAddress() {
-        return address;
-    }
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public OrderStatus getStatus() {
-        return status.get();
-    }
-
-    public void setStatus(OrderStatus newStatus) {
-        this.status.set(newStatus);
-    }
-
-    @Override
-    public String toString() {
-        return "Order{" +
-                "id='" + id + '\'' +
-                ", x=" + x +
-                ", y=" + y +
-                ", address='" + address + '\'' +
-                ", status=" + status.get() +
-                '}';
-    }
 }
