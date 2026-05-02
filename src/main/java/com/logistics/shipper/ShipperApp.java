@@ -8,8 +8,11 @@ import com.logistics.model.BatchStatus;
 import com.logistics.model.Order;
 import com.logistics.model.OrderStatus;
 import com.logistics.repository.BatchRepository;
+import com.logistics.repository.BatchRepositoryImpl;
 import com.logistics.repository.OrderRepository;
+import com.logistics.repository.OrderRepositoryImpl;
 import com.logistics.repository.ShipperRepository;
+import com.logistics.repository.ShipperRepositoryImpl;
 import com.logistics.ui.shipper.ChatPanel;
 import com.logistics.util.Logger;
 import javafx.application.Application;
@@ -71,9 +74,9 @@ public class ShipperApp extends Application {
             DatabaseInitializer.initialize();
 
             // Initialize repositories
-            batchRepository = new BatchRepository();
-            orderRepository = new OrderRepository();
-            shipperRepository = new ShipperRepository();
+            batchRepository = new BatchRepositoryImpl();
+            orderRepository = new OrderRepositoryImpl();
+            shipperRepository = new ShipperRepositoryImpl();
 
             // Get shipper info
             var shipper = shipperRepository.findById(shipperId);

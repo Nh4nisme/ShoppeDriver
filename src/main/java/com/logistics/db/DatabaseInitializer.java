@@ -1,7 +1,9 @@
 package com.logistics.db;
 
 import com.logistics.repository.AuthRepository;
+import com.logistics.repository.AuthRepositoryImpl;
 import com.logistics.repository.ShipperRepository;
+import com.logistics.repository.ShipperRepositoryImpl;
 import com.logistics.util.Logger;
 
 /**
@@ -33,11 +35,11 @@ public class DatabaseInitializer {
         Logger.log("DATABASE", "Tạo dữ liệu mặc định...");
 
         // Create default admin user
-        AuthRepository authRepo = new AuthRepository();
+        AuthRepository authRepo = new AuthRepositoryImpl();
         authRepo.createDefaultAdmin();
 
         // Create default shippers
-        ShipperRepository shipperRepo = new ShipperRepository();
+        ShipperRepository shipperRepo = new ShipperRepositoryImpl();
         shipperRepo.createDefaultShippers();
 
         Logger.log("DATABASE", "Tạo dữ liệu mặc định thành công");

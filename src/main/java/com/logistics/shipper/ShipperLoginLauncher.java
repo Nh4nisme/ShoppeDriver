@@ -3,6 +3,7 @@ package com.logistics.shipper;
 import com.logistics.db.DatabaseInitializer;
 import com.logistics.model.User;
 import com.logistics.repository.AuthRepository;
+import com.logistics.repository.AuthRepositoryImpl;
 import com.logistics.util.Logger;
 import javax.swing.*;
 import java.awt.*;
@@ -42,7 +43,7 @@ public class ShipperLoginLauncher {
                 return;
             }
 
-            AuthRepository repo = new AuthRepository();
+            AuthRepository repo = new AuthRepositoryImpl();
             User user = repo.findByUsername(username);
             if (user == null) {
                 JOptionPane.showMessageDialog(null, "Invalid username or password", "Login Failed", JOptionPane.ERROR_MESSAGE);
@@ -69,4 +70,3 @@ public class ShipperLoginLauncher {
         }
     }
 }
-

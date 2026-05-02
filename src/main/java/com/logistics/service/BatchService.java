@@ -5,7 +5,9 @@ import com.logistics.model.BatchStatus;
 import com.logistics.model.Order;
 import com.logistics.model.OrderStatus;
 import com.logistics.repository.BatchRepository;
+import com.logistics.repository.BatchRepositoryImpl;
 import com.logistics.repository.OrderRepository;
+import com.logistics.repository.OrderRepositoryImpl;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,8 +19,8 @@ public class BatchService {
     private final OrderRepository orderRepository;
 
     public BatchService() {
-        this.batchRepository = new BatchRepository();
-        this.orderRepository = new OrderRepository();
+        this.batchRepository = new BatchRepositoryImpl();
+        this.orderRepository = new OrderRepositoryImpl();
     }
 
     public Batch createBatch(List<Order> orders) {

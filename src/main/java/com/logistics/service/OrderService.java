@@ -4,6 +4,7 @@ import com.logistics.model.LatLng;
 import com.logistics.model.Order;
 import com.logistics.model.Route;
 import com.logistics.repository.OrderRepository;
+import com.logistics.repository.OrderRepositoryImpl;
 import com.logistics.util.Logger;
 
 import java.util.ArrayList;
@@ -16,7 +17,7 @@ public class OrderService implements Runnable {
     private final OrderRepository orderRepository;
 
     private OrderService() {
-        this.orderRepository = new OrderRepository();
+        this.orderRepository = new OrderRepositoryImpl();
     }
 
     public static OrderService getInstance() {

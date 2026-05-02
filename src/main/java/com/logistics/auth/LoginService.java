@@ -2,6 +2,7 @@ package com.logistics.auth;
 
 import com.logistics.model.User;
 import com.logistics.repository.AuthRepository;
+import com.logistics.repository.AuthRepositoryImpl;
 import com.logistics.util.Logger;
 
 /**
@@ -11,7 +12,7 @@ public class LoginService {
     private final AuthRepository authRepository;
 
     public LoginService() {
-        this.authRepository = new AuthRepository();
+        this.authRepository = new AuthRepositoryImpl();
     }
 
     /**
