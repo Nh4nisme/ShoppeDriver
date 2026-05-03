@@ -40,10 +40,12 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
         setPadding(new Insets(10));
 
         VBox shipperSection = createShipperSection();
+        shipperSection.setPrefWidth(350);
         VBox detailSection = createDetailSection();
+        detailSection.setPrefWidth(450);
 
         getChildren().addAll(shipperSection, detailSection);
-        HBox.setHgrow(shipperSection, Priority.ALWAYS);
+        HBox.setHgrow(shipperSection, Priority.NEVER);
         HBox.setHgrow(detailSection, Priority.ALWAYS);
 
         trackingService.addListener(this);
@@ -56,7 +58,7 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
 
         HBox header = new HBox(8);
         header.setAlignment(Pos.CENTER_LEFT);
-        
+
         Label title = new Label("Shipper");
         title.setStyle("-fx-font-weight: bold;");
 
@@ -72,6 +74,7 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
         ScrollPane scrollPane = new ScrollPane(shipperListBox);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(280);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
 
         box.getChildren().addAll(header, scrollPane);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
@@ -90,6 +93,7 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
         ScrollPane scrollPane = new ScrollPane(detailBox);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(280);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
 
         box.getChildren().addAll(title, scrollPane);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
@@ -119,7 +123,8 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
     private VBox createShipperCard(Shipper shipper) {
         VBox card = new VBox(4);
         String borderColor = selectedShipperId != null && selectedShipperId == shipper.getId() ? "#1abc9c" : "#4CAF50";
-        card.setStyle("-fx-border-color: " + borderColor + "; -fx-border-width: 1; -fx-padding: 8; -fx-background-color: #ffffff;");
+        card.setStyle("-fx-border-color: " + borderColor
+                + "; -fx-border-width: 1; -fx-padding: 8; -fx-background-color: #ffffff;");
         card.setOnMouseClicked(event -> {
             selectedShipperId = shipper.getId();
             renderBatchDetail(shipper);
@@ -176,8 +181,10 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
     }
 
     private VBox createOrderCard(Order order) {
-        VBox card = new VBox(3);
-        card.setStyle("-fx-border-color: #dddddd; -fx-border-width: 1; -fx-padding: 8; -fx-background-color: #fafafa;");
+        VBox card = new VBox(5);
+        card.setMinHeight(120);
+        card.setStyle(
+                "-fx-border-color: #dddddd; -fx-border-width: 1; -fx-padding: 10; -fx-background-color: #fafafa;");
 
         HBox top = new HBox(8);
         top.setAlignment(Pos.CENTER_LEFT);
@@ -193,7 +200,8 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
             Button removeBtn = new Button("Xóa khỏi batch");
             removeBtn.setStyle("-fx-background-color: #ffcccc; -fx-text-fill: #cc0000; -fx-font-size: 10px;");
             removeBtn.setOnAction(e -> {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Bạn có chắc muốn xóa đơn " + order.getId() + " khỏi batch?", ButtonType.YES, ButtonType.NO);
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
+                        "Bạn có chắc muốn xóa đơn " + order.getId() + " khỏi batch?", ButtonType.YES, ButtonType.NO);
                 alert.showAndWait().ifPresent(res -> {
                     if (res == ButtonType.YES) {
                         Thread thread = new Thread(() -> {

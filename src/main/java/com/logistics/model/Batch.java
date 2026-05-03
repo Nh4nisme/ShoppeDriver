@@ -25,6 +25,10 @@ public class Batch implements Serializable {
     @Column(name = "shipper_id")
     private Integer shipperId;
 
+    @Column(name = "created_at")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt = new Date();
+
     public int getShipperId() {
         return shipperId == null ? 0 : shipperId;
     }

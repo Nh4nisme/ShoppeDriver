@@ -36,6 +36,7 @@ public class ChatPanel extends BorderPane implements ChatClient.ChatClientListen
 
         Button connectButton = new Button("Connect");
         connectButton.setStyle("-fx-font-size: 11px;");
+        connectButton.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         connectButton.setOnAction(e -> connectToServer());
 
         HBox statusBox = new HBox(10);

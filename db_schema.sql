@@ -20,6 +20,7 @@ CREATE TABLE batch (
     id INT PRIMARY KEY,
     shipper_id INT,
     status ENUM('PENDING', 'ASSIGNED', 'IN_DELIVERY', 'COMPLETED', 'FAILED', 'CREATED') DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (shipper_id) REFERENCES shippers(id)
 );
 
