@@ -21,4 +21,6 @@ public interface ShipperRepository {
     boolean updateStatus(int shipperId, ShipperStatus status);
 
     void createDefaultShippers();
+
+    Shipper findByUserId(int id);
 }

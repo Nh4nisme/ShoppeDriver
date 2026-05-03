@@ -63,4 +63,36 @@ public class AuthRepositoryImpl implements AuthRepository {
             em.close();
         }
     }
+
+    public User createShipperUserIfNotExists(String username, String displayName) {
+        User existing = findByUsername(username);
+        if (existing != null) {
+            Logger.log("DATABASE", "Shipper user da ton tai: " + username);
+            return existing;
+        }
+
+        EntityManager em = EntityManagerUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+
+            String hashedPassword = at.favre.lib.crypto.bcrypt.BCrypt.withDefaults()
+                    .hashToString(12, "shipper123".toCharArray());
+
+            User user = new User();
+            user.setUsername(username);
+            user.setPassword(hashedPassword);
+            user.setRole("SHIPPER");
+            em.persist(user);
+            em.getTransaction().commit();
+
+            Logger.log("DATABASE", "Da tao user shipper: " + username);
+            return findByUsername(username); // reload để lấy id được generate
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) em.getTransaction().rollback();
+            Logger.error("DATABASE", "Loi tao user shipper: " + e.getMessage());
+            return null;
+        } finally {
+            em.close();
+        }
+    }
 }

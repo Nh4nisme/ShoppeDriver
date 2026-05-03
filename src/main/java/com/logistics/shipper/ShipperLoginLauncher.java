@@ -1,9 +1,12 @@
 package com.logistics.shipper;
 
 import com.logistics.db.DatabaseInitializer;
+import com.logistics.model.Shipper;
 import com.logistics.model.User;
 import com.logistics.repository.AuthRepository;
 import com.logistics.repository.AuthRepositoryImpl;
+import com.logistics.repository.ShipperRepository;
+import com.logistics.repository.ShipperRepositoryImpl;
 import com.logistics.util.Logger;
 import javax.swing.*;
 import java.awt.*;
@@ -65,7 +68,15 @@ public class ShipperLoginLauncher {
             Logger.log("SHIPPER_LOGIN", "Shipper authenticated: " + username + " (id=" + user.getId() + ")");
 
             // Launch ShipperApp with shipperId as argument
-            String[] launchArgs = new String[]{String.valueOf(user.getId())};
+            ShipperRepository shipperRepo = new ShipperRepositoryImpl();
+            Shipper shipper = shipperRepo.findByUserId(user.getId());
+
+            if (shipper == null) {
+                JOptionPane.showMessageDialog(null, "Không tìm thấy shipper cho user này", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String[] launchArgs = new String[]{String.valueOf(shipper.getId())};
             ShipperApp.main(launchArgs);
         }
     }
