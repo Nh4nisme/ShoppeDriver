@@ -2,6 +2,7 @@ package com.logistics.ui.shipper;
 
 import com.logistics.model.Order;
 import com.logistics.worker.ShipperWorker;
+import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
@@ -36,7 +37,7 @@ public class OrderListPanel extends VBox implements DataChangeListener {
     }
 
     @Override
-    public void onDataChanged() {
+    public void onDataChanged(DataChangeEvent event) {
         Platform.runLater(this::updateOrderList);
     }
 

@@ -136,11 +136,17 @@ public class ShipperRepositoryImpl implements ShipperRepository {
         EntityManager em = EntityManagerUtil.getEntityManager();
         try {
             em.getTransaction().begin();
-            int id = (int) (Math.random() * 1000);
+
             double x = Math.random() * 20 + 40;
             double y = Math.random() * 20 + 40;
 
-            Shipper shipper = new Shipper(id, name, x, y, ShipperStatus.IDLE, true);
+            Shipper shipper = new Shipper();
+            shipper.setName(name);
+            shipper.setCurrentX(x);
+            shipper.setCurrentY(y);
+            shipper.setStatus(ShipperStatus.IDLE);
+            shipper.setActive(true);
+
             em.persist(shipper);
             em.getTransaction().commit();
         } catch (Exception e) {

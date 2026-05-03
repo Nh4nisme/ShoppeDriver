@@ -5,7 +5,6 @@ import com.logistics.service.AddressSuggestService;
 import com.logistics.service.BatchService;
 import com.logistics.service.OrderService;
 import com.logistics.service.RouteBuilderService;
-import com.logistics.service.ShipperTrackingService;
 import com.logistics.ui.GoogleMapsPanel;
 import com.logistics.util.Logger;
 import javafx.animation.PauseTransition;
@@ -381,7 +380,6 @@ public class BatchCreationPanel extends VBox {
                     routeListLabel.setText("Chua co tuyen duong de chon.");
                     routeListBox.getChildren().clear();
                     clearLoadedOrdersAfterCreate();
-                    ShipperTrackingService.getInstance().refreshData();
                     appLog("Tao batch #" + batch.getId() + " thanh cong");
                 });
             } catch (Exception ex) {

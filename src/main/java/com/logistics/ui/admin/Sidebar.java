@@ -4,6 +4,7 @@ import com.logistics.model.Batch;
 import com.logistics.model.BatchStatus;
 import com.logistics.model.Order;
 import com.logistics.service.ShipperTrackingService;
+import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -128,7 +129,14 @@ public class Sidebar extends VBox implements DataChangeListener {
     }
 
     @Override
-    public void onDataChanged() {
+    public void onDataChanged(DataChangeEvent event) {
+        if (event == null) {
+            return;
+        }
+        if (!event.isType(DataChangeEvent.BATCH_UPDATED)
+                && !event.isType(DataChangeEvent.DATA_CHANGED)) {
+            return;
+        }
         Platform.runLater(() -> {
             updateBatchList();
             if (assignmentPanel != null) {
