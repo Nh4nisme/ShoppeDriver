@@ -28,6 +28,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * Independent Shipper Application
@@ -47,8 +49,12 @@ public class ShipperApp extends Application {
     private ListView<String> batchListView;
     private TextArea orderDetailArea;
     private Button startDeliveryButton;
+    private Button pauseDeliveryButton;
     private Button deliverNextButton;
+    private Button failDeliveryButton;
+    private Button refreshButton;
     private Label progressLabel;
+    private Label lastRefreshLabel;
 
     // Current state
     private Batch currentBatch;
@@ -113,66 +119,102 @@ public class ShipperApp extends Application {
         stage.setTitle("ShippeDriver - " + shipperName);
 
         BorderPane root = new BorderPane();
-        // Top: Shipper info (mobile-like header)
+        root.setStyle("-fx-font-family: 'Segoe UI', sans-serif; -fx-background-color: #f0f2f5;");
+
+        HBox topBox = new HBox(10);
+        topBox.setPadding(new Insets(15));
+        topBox.setAlignment(Pos.CENTER_LEFT);
+        topBox.setStyle("-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+
         shipperInfoLabel = new Label("Shipper: " + shipperName + " - Chưa có batch");
-        shipperInfoLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 8 0 8 8;");
-        BorderPane.setMargin(shipperInfoLabel, new Insets(6));
-        root.setTop(shipperInfoLabel);
+        shipperInfoLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #d35400;");
+        topBox.getChildren().add(shipperInfoLabel);
+        root.setTop(topBox);
 
         // Left: Batch list (new column) - mobile-like narrow column
         batchListView = new ListView<>();
         batchListView.setPrefWidth(220);
         batchListView.setPlaceholder(new Label("No batches"));
-        VBox leftBox = new VBox(6);
-        Label batchesLabel = new Label("Your Batches");
-        batchesLabel.setStyle("-fx-font-weight: bold; -fx-padding: 6; -fx-font-size: 12px;");
+        batchListView.setStyle("-fx-background-insets: 0; -fx-padding: 0; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-font-size: 13px;");
+        VBox leftBox = new VBox(10);
+        Label batchesLabel = new Label("Danh sách chuyến xe");
+        batchesLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #555;");
         leftBox.getChildren().addAll(batchesLabel, batchListView);
-        leftBox.setPadding(new Insets(6));
+        leftBox.setPadding(new Insets(15));
         root.setLeft(leftBox);
 
         // Center: Order list (main content) - larger for mobile view
         orderListView = new ListView<>();
-        orderListView.setPrefHeight(300);
-        orderListView.setStyle("-fx-font-size: 13px;");
-        root.setCenter(orderListView);
+        orderListView.setStyle("-fx-background-insets: 0; -fx-padding: 0; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-font-size: 14px;");
+        Label ordersLabel = new Label("Chi tiết đơn hàng");
+        ordersLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #555;");
+        VBox centerBox = new VBox(10, ordersLabel, orderListView);
+        centerBox.setPadding(new Insets(15));
+        root.setCenter(centerBox);
 
         // Right: Order details + chat (stacked) - on mobile this acts like a detail pane
         orderDetailArea = new TextArea();
         orderDetailArea.setEditable(false);
         orderDetailArea.setPromptText("Chi tiết đơn hàng sẽ hiển thị ở đây");
-        orderDetailArea.setPrefWidth(300);
-        orderDetailArea.setPrefHeight(180);
+        orderDetailArea.setPrefWidth(320);
+        orderDetailArea.setPrefHeight(200);
+        orderDetailArea.setWrapText(true);
+        orderDetailArea.setStyle("-fx-font-size: 14px; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;");
 
         ChatPanel chatPanel = new ChatPanel();
         chatPanel.setPrefWidth(320);
-        chatPanel.setPrefHeight(260);
+        chatPanel.setPrefHeight(300);
+        chatPanel.setStyle("-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;");
 
-        VBox rightBox = new VBox(8, orderDetailArea, chatPanel);
-        rightBox.setPadding(new Insets(6));
+        Label detailLabel = new Label("Thông tin & Liên hệ");
+        detailLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #555;");
+
+        VBox rightBox = new VBox(10, detailLabel, orderDetailArea, chatPanel);
+        rightBox.setPadding(new Insets(15));
         root.setRight(rightBox);
 
         // Bottom: Controls and progress
-        VBox bottomBox = new VBox(10);
-        bottomBox.setPadding(new Insets(10));
+        VBox bottomBox = new VBox(12);
+        bottomBox.setPadding(new Insets(15));
+        bottomBox.setStyle("-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, -2);");
 
-        HBox buttonBox = new HBox(10);
+        HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
 
         startDeliveryButton = new Button("Bắt đầu giao hàng");
-        startDeliveryButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+        startDeliveryButton.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
         startDeliveryButton.setOnAction(e -> startDelivery());
 
+        pauseDeliveryButton = new Button("Tạm dừng");
+        pauseDeliveryButton.setStyle("-fx-background-color: #f1c40f; -fx-text-fill: #333; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        pauseDeliveryButton.setDisable(true);
+        pauseDeliveryButton.setOnAction(e -> pauseDelivery());
+
         deliverNextButton = new Button("Giao đơn tiếp theo");
-        deliverNextButton.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+        deliverNextButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
         deliverNextButton.setDisable(true);
         deliverNextButton.setOnAction(e -> deliverNext());
 
-        buttonBox.getChildren().addAll(startDeliveryButton, deliverNextButton);
+        failDeliveryButton = new Button("Giao không được");
+        failDeliveryButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        failDeliveryButton.setDisable(true);
+        failDeliveryButton.setOnAction(e -> failDeliverCurrent());
+
+        refreshButton = new Button("↻ Làm mới");
+        refreshButton.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        refreshButton.setOnAction(e -> manualRefresh());
+
+        buttonBox.getChildren().addAll(startDeliveryButton, pauseDeliveryButton, deliverNextButton, failDeliveryButton, refreshButton);
 
         progressLabel = new Label("Chưa bắt đầu giao hàng");
-        progressLabel.setStyle("-fx-font-size: 12px;");
+        progressLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #333;");
+        lastRefreshLabel = new Label("");
+        lastRefreshLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #888;");
+        
+        HBox infoBox = new HBox(10, progressLabel, lastRefreshLabel);
+        infoBox.setAlignment(Pos.CENTER);
 
-        bottomBox.getChildren().addAll(buttonBox, progressLabel);
+        bottomBox.getChildren().addAll(buttonBox, infoBox);
         root.setBottom(bottomBox);
 
         // Event handlers
@@ -190,10 +232,15 @@ public class ShipperApp extends Application {
                 try {
                     var batches = batchRepository.findActiveByShipper(shipperId);
                     if (idx < batches.size()) {
-                        currentBatch = batches.get(idx);
-                        currentOrders = currentBatch.getOrders();
-                        currentOrderIndex = 0;
-                        updateUIForNewBatch();
+                        Batch selectedBatch = batches.get(idx);
+                        if (currentBatch == null || currentBatch.getId() != selectedBatch.getId()) {
+                            currentBatch = selectedBatch;
+                            currentOrders = currentBatch.getOrders();
+                            currentOrderIndex = (int) currentOrders.stream()
+                                    .filter(o -> o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.FAILED)
+                                    .count();
+                            updateUIForNewBatch();
+                        }
                     }
                 } catch (Exception e) {
                     Logger.error("SHIPPER", "Loi load batch tu list: " + e.getMessage());
@@ -226,7 +273,7 @@ public class ShipperApp extends Application {
         Thread pollingThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    checkForNewBatch();
+                    checkForNewBatch(false);
                     Thread.sleep(3000); // Check every 3 seconds
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -240,17 +287,22 @@ public class ShipperApp extends Application {
         Logger.log("SHIPPER", "Bắt đầu kiểm tra batch cho shipper: " + shipperName);
     }
 
-    private void checkForNewBatch() {
-        // Load currently assigned batch (single) as before
-        Batch assignedBatch = batchRepository.findByShipperAndStatus(shipperId, BatchStatus.ASSIGNED);
+    private void checkForNewBatch(boolean force) {
+        // Load active batch
+        Batch activeBatch = batchRepository.findByShipperAndStatus(shipperId, BatchStatus.IN_DELIVERY);
+        if (activeBatch == null) {
+            activeBatch = batchRepository.findByShipperAndStatus(shipperId, BatchStatus.ASSIGNED);
+        }
 
-        if (assignedBatch != null && (currentBatch == null || currentBatch.getId() != assignedBatch.getId())) {
-            // New batch assigned
-            currentBatch = assignedBatch;
-            currentOrders = assignedBatch.getOrders();
-            currentOrderIndex = 0;
+        if (activeBatch != null && (force || currentBatch == null || currentBatch.getId() != activeBatch.getId())) {
+            // New batch assigned or force refresh
+            currentBatch = activeBatch;
+            currentOrders = activeBatch.getOrders();
+            currentOrderIndex = (int) currentOrders.stream()
+                    .filter(o -> o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.FAILED)
+                    .count();
 
-            Logger.log("SHIPPER", "Nhận batch " + assignedBatch.getId() + " với " + currentOrders.size() + " đơn");
+            Logger.log("SHIPPER", "Nhận batch " + activeBatch.getId() + " với " + currentOrders.size() + " đơn");
 
             // Update UI
             javafx.application.Platform.runLater(() -> updateUIForNewBatch());
@@ -261,6 +313,9 @@ public class ShipperApp extends Application {
             var batches = batchRepository.findActiveByShipper(shipperId);
             javafx.application.Platform.runLater(() -> {
                 updateBatchListUI(batches);
+                if (lastRefreshLabel != null) {
+                    lastRefreshLabel.setText("Cập nhật lúc " + new SimpleDateFormat("HH:mm:ss").format(new Date()));
+                }
             });
         } catch (Exception e) {
             Logger.error("SHIPPER", "Loi lay danh sach batch: " + e.getMessage());
@@ -269,6 +324,7 @@ public class ShipperApp extends Application {
 
     private void updateBatchListUI(java.util.List<Batch> batches) {
         if (batchListView == null) return;
+        int selectedIndex = batchListView.getSelectionModel().getSelectedIndex();
         ObservableList<String> items = FXCollections.observableArrayList();
         for (Batch b : batches) {
             String label = "#" + b.getId() + " - " + b.getOrders().size() + " orders - " + b.getStatus();
@@ -278,6 +334,9 @@ public class ShipperApp extends Application {
         if (items.isEmpty()) {
             batchListView.setPlaceholder(new Label("No batches assigned"));
         }
+        if (selectedIndex >= 0 && selectedIndex < items.size()) {
+            batchListView.getSelectionModel().select(selectedIndex);
+        }
     }
 
     private void updateUIForNewBatch() {
@@ -285,30 +344,85 @@ public class ShipperApp extends Application {
 
         orderListView.getItems().clear();
         for (Order order : currentOrders) {
+            String statusText = order.getStatus().toString();
+            if (order.getStatus() == OrderStatus.COMPLETED) {
+                statusText = "✓ HOÀN THÀNH";
+            } else if (order.getStatus() == OrderStatus.FAILED) {
+                statusText = "✗ THẤT BẠI";
+            }
             orderListView.getItems().add("Đơn #" + order.getId() + " - (" +
                     String.format("%.1f", order.getX()) + ", " +
-                    String.format("%.1f", order.getY()) + ") - " + order.getStatus());
+                    String.format("%.1f", order.getY()) + ") - " + statusText);
         }
 
-        startDeliveryButton.setDisable(false);
-        progressLabel.setText("Batch mới: " + currentOrders.size() + " đơn - Chưa bắt đầu");
+        if (currentBatch != null && currentBatch.getStatus() == BatchStatus.IN_DELIVERY) {
+            startDeliveryButton.setDisable(true);
+            pauseDeliveryButton.setDisable(false);
+            if (currentOrderIndex < currentOrders.size()) {
+                deliverNextButton.setDisable(false);
+                failDeliveryButton.setDisable(false);
+                progressLabel.setText("Đang giao đơn " + (currentOrderIndex + 1) + "/" + currentOrders.size());
+                orderListView.getSelectionModel().select(currentOrderIndex);
+                showOrderDetails(currentOrders.get(currentOrderIndex));
+            } else {
+                deliverNextButton.setDisable(true);
+                failDeliveryButton.setDisable(true);
+                pauseDeliveryButton.setDisable(true);
+                progressLabel.setText("Batch hoàn thành! Chờ batch mới...");
+            }
+        } else {
+            startDeliveryButton.setDisable(false);
+            startDeliveryButton.setText(currentOrderIndex > 0 ? "Tiếp tục giao hàng" : "Bắt đầu giao hàng");
+            if (pauseDeliveryButton != null) pauseDeliveryButton.setDisable(true);
+            deliverNextButton.setDisable(true);
+            failDeliveryButton.setDisable(true);
+            progressLabel.setText(currentOrderIndex > 0 ? "Đang tạm dừng (" + currentOrderIndex + "/" + currentOrders.size() + ")" : "Batch mới: " + currentOrders.size() + " đơn - Chưa bắt đầu");
+        }
+        
+        if (refreshButton != null) {
+            refreshButton.setDisable(false);
+            refreshButton.setText("↻ Làm mới");
+        }
+    }
+
+    private void manualRefresh() {
+        if (refreshButton != null) {
+            refreshButton.setDisable(true);
+            refreshButton.setText("Đang tải...");
+        }
+        Thread refreshThread = new Thread(() -> {
+            checkForNewBatch(true);
+            javafx.application.Platform.runLater(() -> {
+                if (refreshButton != null) {
+                    refreshButton.setDisable(false);
+                    refreshButton.setText("↻ Làm mới");
+                }
+            });
+        });
+        refreshThread.setDaemon(true);
+        refreshThread.start();
     }
 
     private void startDelivery() {
         if (currentBatch == null) return;
 
-        Logger.log("SHIPPER", "Bắt đầu giao batch " + currentBatch.getId());
+        Logger.log("SHIPPER", "Bắt đầu/Tiếp tục giao batch " + currentBatch.getId());
+        
+        batchRepository.updateStatus(currentBatch.getId(), BatchStatus.IN_DELIVERY);
+        currentBatch.setStatus(BatchStatus.IN_DELIVERY);
 
-        startDeliveryButton.setDisable(true);
-        deliverNextButton.setDisable(false);
+        checkForNewBatch(true);
+    }
 
-        progressLabel.setText("Đang giao đơn 1/" + currentOrders.size());
+    private void pauseDelivery() {
+        if (currentBatch == null) return;
 
-        // Select first order
-        orderListView.getSelectionModel().select(0);
-        if (!currentOrders.isEmpty()) {
-            showOrderDetails(currentOrders.get(0));
-        }
+        Logger.log("SHIPPER", "Tạm dừng giao batch " + currentBatch.getId());
+        
+        batchRepository.updateStatus(currentBatch.getId(), BatchStatus.ASSIGNED);
+        currentBatch.setStatus(BatchStatus.ASSIGNED);
+
+        checkForNewBatch(true);
     }
 
     private void deliverNext() {
@@ -332,9 +446,32 @@ public class ShipperApp extends Application {
             // Batch completed
             completeBatch();
         } else {
-            // Select next order
-            orderListView.getSelectionModel().select(currentOrderIndex);
-            showOrderDetails(currentOrders.get(currentOrderIndex));
+            checkForNewBatch(true);
+        }
+    }
+
+    private void failDeliverCurrent() {
+        if (currentOrders == null || currentOrderIndex >= currentOrders.size()) return;
+
+        Order currentOrder = currentOrders.get(currentOrderIndex);
+
+        // Mark order as FAILED
+        orderRepository.updateStatus(currentOrder.getId(), OrderStatus.FAILED);
+
+        Logger.log("SHIPPER", "Giao thất bại đơn " + currentOrder.getId());
+
+        // Update UI
+        orderListView.getItems().set(currentOrderIndex,
+                "Đơn #" + currentOrder.getId() + " - ✗ THẤT BẠI");
+
+        currentOrderIndex++;
+        progressLabel.setText("Đang giao đơn " + (currentOrderIndex + 1) + "/" + currentOrders.size());
+
+        if (currentOrderIndex >= currentOrders.size()) {
+            // Batch completed
+            completeBatch();
+        } else {
+            checkForNewBatch(true);
         }
     }
 
@@ -349,6 +486,7 @@ public class ShipperApp extends Application {
 
         // Update UI
         deliverNextButton.setDisable(true);
+        failDeliveryButton.setDisable(true);
         progressLabel.setText("Batch hoàn thành! Chờ batch mới...");
 
         // Reset state

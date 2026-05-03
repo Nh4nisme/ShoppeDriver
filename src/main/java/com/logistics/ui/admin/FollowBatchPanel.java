@@ -4,6 +4,8 @@ import com.logistics.model.Batch;
 import com.logistics.model.Order;
 import com.logistics.model.Shipper;
 import com.logistics.service.ShipperTrackingService;
+import com.logistics.repository.BatchRepository;
+import com.logistics.repository.BatchRepositoryImpl;
 import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import javafx.application.Platform;
@@ -12,6 +14,8 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -21,12 +25,14 @@ import java.util.List;
 
 public class FollowBatchPanel extends HBox implements DataChangeListener {
     private final ShipperTrackingService trackingService;
+    private final BatchRepository batchRepository;
     private final VBox shipperListBox;
     private final VBox detailBox;
     private Integer selectedShipperId;
 
     public FollowBatchPanel() {
         this.trackingService = ShipperTrackingService.getInstance();
+        this.batchRepository = new BatchRepositoryImpl();
         this.shipperListBox = new VBox(6);
         this.detailBox = new VBox(8);
 
@@ -182,6 +188,26 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         top.getChildren().addAll(idLabel, spacer, statusLabel);
+
+        if (order.getStatus() == com.logistics.model.OrderStatus.FAILED) {
+            Button removeBtn = new Button("Xóa khỏi batch");
+            removeBtn.setStyle("-fx-background-color: #ffcccc; -fx-text-fill: #cc0000; -fx-font-size: 10px;");
+            removeBtn.setOnAction(e -> {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Bạn có chắc muốn xóa đơn " + order.getId() + " khỏi batch?", ButtonType.YES, ButtonType.NO);
+                alert.showAndWait().ifPresent(res -> {
+                    if (res == ButtonType.YES) {
+                        Thread thread = new Thread(() -> {
+                            batchRepository.removeOrderFromBatch(order.getId());
+                            ShipperTrackingService.getInstance().notifyBatchUpdated(0);
+                            Platform.runLater(() -> refresh());
+                        });
+                        thread.setDaemon(true);
+                        thread.start();
+                    }
+                });
+            });
+            top.getChildren().add(removeBtn);
+        }
 
         Label addressLabel = new Label(order.getAddress() == null || order.getAddress().isBlank()
                 ? "(No address)"
