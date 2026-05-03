@@ -107,13 +107,18 @@ public class BatchCreationPanel extends VBox {
         VBox fromAddressBox = createAddressComponentBox("Diem bat dau", true);
         VBox toAddressBox = createAddressComponentBox("Diem ket thuc", false);
 
-        HBox actionBox = new HBox(10);
-        actionBox.setAlignment(Pos.CENTER_LEFT);
+        VBox actionBox = new VBox(10);
+        HBox row1 = new HBox(10);
+        row1.setAlignment(Pos.CENTER_LEFT);
+        HBox row2 = new HBox(10);
+        row2.setAlignment(Pos.CENTER_LEFT);
 
         Button previewButton = new Button("Preview Route");
         Button loadButton = new Button("Load Orders");
         createButton = new Button("Create Batch");
         planBatchesButton = new Button("Plan Batches");
+        Button clearFormButton = new Button("Clear Form");
+        clearFormButton.setOnAction(e -> clearForm());
         createButton.setDisable(true);
 
         previewButton.setOnAction(e -> previewRoute());
@@ -121,7 +126,9 @@ public class BatchCreationPanel extends VBox {
         createButton.setOnAction(e -> createBatch());
         planBatchesButton.setOnAction(e -> confirmAndPlanBatches());
 
-        actionBox.getChildren().addAll(previewButton, loadButton, createButton, planBatchesButton);
+        row1.getChildren().addAll(previewButton, loadButton, planBatchesButton, clearFormButton);
+        row2.getChildren().addAll(createButton);
+        actionBox.getChildren().addAll(row1, row2);
 
         box.getChildren().addAll(helperLabel, fromAddressBox, toAddressBox, actionBox);
         return box;
@@ -233,6 +240,11 @@ public class BatchCreationPanel extends VBox {
         selectAllButton = new Button("Select All");
         clearSelectionButton = new Button("Clear Selection");
         previewWaypointsButton = new Button("Preview Route (Chon)");
+        
+        selectAllButton.setMinWidth(Region.USE_PREF_SIZE);
+        clearSelectionButton.setMinWidth(Region.USE_PREF_SIZE);
+        previewWaypointsButton.setMinWidth(Region.USE_PREF_SIZE);
+        
         selectAllButton.setDisable(true);
         clearSelectionButton.setDisable(true);
         previewWaypointsButton.setDisable(true);
@@ -797,6 +809,19 @@ public class BatchCreationPanel extends VBox {
         statusLabel.setText(message);
         statusLabel.setStyle("-fx-text-fill: #f44336;");
         Logger.error("BATCH_UI", message);
+    }
+
+    private void clearForm() {
+        if (fromStreetField != null) fromStreetField.clear();
+        if (fromNumberField != null) fromNumberField.clear();
+        if (fromWardField != null) fromWardField.clear();
+        if (fromDistrictField != null) fromDistrictField.clear();
+        if (fromCityField != null) fromCityField.clear();
+        if (toStreetField != null) toStreetField.clear();
+        if (toNumberField != null) toNumberField.clear();
+        if (toWardField != null) toWardField.clear();
+        if (toDistrictField != null) toDistrictField.clear();
+        if (toCityField != null) toCityField.clear();
     }
 
     private void appLog(String message) {

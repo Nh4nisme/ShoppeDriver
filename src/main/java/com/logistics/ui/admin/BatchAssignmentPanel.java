@@ -59,10 +59,12 @@ public class BatchAssignmentPanel extends VBox {
 
         // Left: Batch list
         VBox batchSection = createBatchSection();
+        batchSection.setPrefWidth(350);
         HBox.setHgrow(batchSection, Priority.ALWAYS);
 
         // Right: Shipper list
         VBox shipperSection = createShipperSection();
+        shipperSection.setPrefWidth(350);
         HBox.setHgrow(shipperSection, Priority.ALWAYS);
 
         box.getChildren().addAll(batchSection, shipperSection);
@@ -82,8 +84,10 @@ public class BatchAssignmentPanel extends VBox {
         ScrollPane scrollPane = new ScrollPane(batchListBox);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(250);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
 
         Button refreshButton = new Button("Refresh");
+        refreshButton.setMinWidth(Region.USE_PREF_SIZE);
         refreshButton.setPrefWidth(80);
         refreshButton.setStyle("-fx-font-size: 10px;");
         refreshButton.setOnAction(e -> refreshBatches());
@@ -106,8 +110,10 @@ public class BatchAssignmentPanel extends VBox {
         ScrollPane scrollPane = new ScrollPane(shipperListBox);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(250);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
 
         Button assignButton = new Button("Gán");
+        assignButton.setMinWidth(Region.USE_PREF_SIZE);
         assignButton.setPrefWidth(80);
         assignButton.setStyle("-fx-font-size: 10px; -fx-background-color: #2196F3; -fx-text-fill: white;");
         assignButton.setOnAction(e -> handleAssignBatch());
@@ -190,10 +196,7 @@ public class BatchAssignmentPanel extends VBox {
 
         Label nameLabel = new Label(shipper.getName());
         nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #000000;");
-        nameLabel.setPrefWidth(80);
-
-        Label locationLabel = new Label("(" + String.format("%.1f", shipper.getCurrentX()) + ", " + String.format("%.1f", shipper.getCurrentY()) + ")");
-        locationLabel.setStyle("-fx-font-size: 9px; -fx-text-fill: #000000;");
+        nameLabel.setPrefWidth(150);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -201,7 +204,7 @@ public class BatchAssignmentPanel extends VBox {
         RadioButton selectRadio = new RadioButton();
         selectRadio.setOnAction(e -> selectedShipper = shipper);
 
-        card.getChildren().addAll(selectRadio, nameLabel, locationLabel, spacer);
+        card.getChildren().addAll(selectRadio, nameLabel, spacer);
         return card;
     }
 

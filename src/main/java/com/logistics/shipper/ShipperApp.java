@@ -133,7 +133,7 @@ public class ShipperApp extends Application {
 
         // Left: Batch list (new column) - mobile-like narrow column
         batchListView = new ListView<>();
-        batchListView.setPrefWidth(220);
+        batchListView.setPrefWidth(170);
         batchListView.setPlaceholder(new Label("No batches"));
         batchListView.setStyle("-fx-background-insets: 0; -fx-padding: 0; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-font-size: 13px;");
         VBox leftBox = new VBox(10);
@@ -156,13 +156,13 @@ public class ShipperApp extends Application {
         orderDetailArea = new TextArea();
         orderDetailArea.setEditable(false);
         orderDetailArea.setPromptText("Chi tiết đơn hàng sẽ hiển thị ở đây");
-        orderDetailArea.setPrefWidth(320);
+        orderDetailArea.setPrefWidth(220);
         orderDetailArea.setPrefHeight(200);
         orderDetailArea.setWrapText(true);
         orderDetailArea.setStyle("-fx-font-size: 14px; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;");
 
         ChatPanel chatPanel = new ChatPanel();
-        chatPanel.setPrefWidth(320);
+        chatPanel.setPrefWidth(220);
         chatPanel.setPrefHeight(300);
         chatPanel.setStyle("-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;");
 
@@ -183,25 +183,30 @@ public class ShipperApp extends Application {
 
         startDeliveryButton = new Button("Bắt đầu giao hàng");
         startDeliveryButton.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        startDeliveryButton.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         startDeliveryButton.setOnAction(e -> startDelivery());
 
         pauseDeliveryButton = new Button("Tạm dừng");
         pauseDeliveryButton.setStyle("-fx-background-color: #f1c40f; -fx-text-fill: #333; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        pauseDeliveryButton.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         pauseDeliveryButton.setDisable(true);
         pauseDeliveryButton.setOnAction(e -> pauseDelivery());
 
         deliverNextButton = new Button("Giao đơn tiếp theo");
         deliverNextButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        deliverNextButton.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         deliverNextButton.setDisable(true);
         deliverNextButton.setOnAction(e -> deliverNext());
 
         failDeliveryButton = new Button("Giao không được");
         failDeliveryButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        failDeliveryButton.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         failDeliveryButton.setDisable(true);
         failDeliveryButton.setOnAction(e -> failDeliverCurrent());
 
         refreshButton = new Button("↻ Làm mới");
         refreshButton.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 16; -fx-cursor: hand;");
+        refreshButton.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         refreshButton.setOnAction(e -> manualRefresh());
 
         buttonBox.getChildren().addAll(startDeliveryButton, pauseDeliveryButton, deliverNextButton, failDeliveryButton, refreshButton);
@@ -500,12 +505,12 @@ public class ShipperApp extends Application {
                 "ĐƠN HÀNG #%d\n\n" +
                         "Vị trí: (%.1f, %.1f)\n" +
                         "Trạng thái: %s\n" +
-                        "Thời gian tạo: %s",
+                        "Thời gian tạo Batch: %s",
                 order.getId(),
                 order.getX(),
                 order.getY(),
                 order.getStatus(),
-                "N/A" // Could add timestamp if needed
+                currentBatch != null && currentBatch.getCreatedAt() != null ? new java.text.SimpleDateFormat("dd/MM/yyyy").format(currentBatch.getCreatedAt()) : "N/A"
         );
         orderDetailArea.setText(details);
     }

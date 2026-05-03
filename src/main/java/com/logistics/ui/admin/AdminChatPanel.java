@@ -40,14 +40,12 @@ public class AdminChatPanel extends BorderPane implements ChatServer.ChatMessage
         Label titleLabel = new Label("Chat with Shippers");
         titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        HBox statusBox = new HBox(15);
-        statusBox.setStyle("-fx-padding: 5;");
-
         statusLabel = new Label(chatServer.isRunning() ? "Server: RUNNING" : "Server: READY");
         statusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #27ae60;");
 
         Button startServerBtn = new Button("Start Server");
         startServerBtn.setStyle("-fx-font-size: 11px;");
+        startServerBtn.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         startServerBtn.setOnAction(e -> startChatServer());
 
         shipperCombo = new ComboBox<>();
@@ -57,10 +55,16 @@ public class AdminChatPanel extends BorderPane implements ChatServer.ChatMessage
 
         Button refreshShippersBtn = new Button("Refresh");
         refreshShippersBtn.setStyle("-fx-font-size: 11px;");
+        refreshShippersBtn.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         refreshShippersBtn.setOnAction(e -> refreshShipperList());
 
-        statusBox.getChildren().addAll(statusLabel, startServerBtn,
-                new Label("Select Shipper:"), shipperCombo, refreshShippersBtn);
+        HBox row1 = new HBox(15, statusLabel, startServerBtn);
+        row1.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        HBox row2 = new HBox(15, new Label("Select Shipper:"), shipperCombo, refreshShippersBtn);
+        row2.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        
+        VBox statusBox = new VBox(10, row1, row2);
+        statusBox.setStyle("-fx-padding: 5;");
 
         topBox.getChildren().addAll(titleLabel, statusBox);
         this.setTop(topBox);
