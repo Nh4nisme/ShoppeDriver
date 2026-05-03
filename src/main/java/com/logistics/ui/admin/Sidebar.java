@@ -68,8 +68,7 @@ public class Sidebar extends VBox implements DataChangeListener {
         listContent.setPadding(new Insets(10));
 
         this.batchFilter = new ComboBox<>(FXCollections.observableArrayList(
-                "ALL", "CREATED", "ASSIGNED", "IN_DELIVERY", "COMPLETED"
-        ));
+                "ALL", "CREATED", "ASSIGNED", "IN_DELIVERY", "COMPLETED"));
         batchFilter.setValue("ALL");
         batchFilter.setOnAction(e -> updateBatchList());
 
@@ -129,7 +128,8 @@ public class Sidebar extends VBox implements DataChangeListener {
 
     @Override
     public void onDataChanged(DataChangeEvent event) {
-        if (event == null) return;
+        if (event == null)
+            return;
 
         if (!event.isType(DataChangeEvent.BATCH_UPDATED)) {
             return;
@@ -182,7 +182,8 @@ public class Sidebar extends VBox implements DataChangeListener {
         card.setSpacing(3);
         card.setPadding(new Insets(8));
         String highlight = selectedBatchId != null && selectedBatchId == batch.getId() ? "#1abc9c" : "#3498db";
-        card.setStyle("-fx-border-color: " + highlight + "; -fx-border-width: 2; -fx-border-radius: 3; -fx-background-color: #ffffff;");
+        card.setStyle("-fx-border-color: " + highlight
+                + "; -fx-border-width: 2; -fx-border-radius: 3; -fx-background-color: #ffffff;");
         card.setOnMouseClicked(e -> {
             selectedBatchId = batch.getId();
             renderBatchDetail(ShipperTrackingService.getInstance().getBatch(batch.getId()));

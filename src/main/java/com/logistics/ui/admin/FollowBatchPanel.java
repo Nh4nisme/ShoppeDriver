@@ -11,6 +11,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Button;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -47,14 +48,26 @@ public class FollowBatchPanel extends HBox implements DataChangeListener {
         VBox box = new VBox(8);
         box.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 8; -fx-background-color: #f9f9f9;");
 
+        HBox header = new HBox(8);
+        header.setAlignment(Pos.CENTER_LEFT);
+        
         Label title = new Label("Shipper");
         title.setStyle("-fx-font-weight: bold;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button refreshBtn = new Button("Refresh");
+        refreshBtn.setStyle("-fx-font-size: 10px;");
+        refreshBtn.setOnAction(e -> refresh());
+
+        header.getChildren().addAll(title, spacer, refreshBtn);
 
         ScrollPane scrollPane = new ScrollPane(shipperListBox);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(280);
 
-        box.getChildren().addAll(title, scrollPane);
+        box.getChildren().addAll(header, scrollPane);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         return box;
     }

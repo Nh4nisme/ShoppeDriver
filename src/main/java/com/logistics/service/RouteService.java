@@ -103,7 +103,63 @@ public class RouteService {
         }
 
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        List<Route> routeOptions = parseRoutes(root, from, to);
 
+        routeOptions.sort(Comparator
+                .comparingDouble(Route::getDurationSeconds)
+                .thenComparingDouble(Route::getDistanceMeters));
+        if (routeOptions.size() > 3) {
+            return new ArrayList<>(routeOptions.subList(0, 3));
+        }
+        return routeOptions;
+    }
+
+    public Route getRouteWithWaypoints(LatLng from, LatLng to, List<LatLng> waypoints) throws IOException, InterruptedException {
+        StringBuilder coordsStr = new StringBuilder();
+        coordsStr.append("[").append(from.longitude()).append(",").append(from.latitude()).append("]");
+        for (LatLng wp : waypoints) {
+            coordsStr.append(",[").append(wp.longitude()).append(",").append(wp.latitude()).append("]");
+        }
+        coordsStr.append(",[").append(to.longitude()).append(",").append(to.latitude()).append("]");
+
+        String body = "{\"coordinates\":[" + coordsStr.toString() + "],"
+                + "\"instructions\":false,\"geometry\":true,\"units\":\"m\"}";
+
+        IOException lastException = null;
+        for (String baseUrl : ROUTE_BASE_URLS) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
+                        .timeout(Duration.ofSeconds(20))
+                        .header("User-Agent", "ShoppeDriver/1.0")
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", ORS_API_KEY)
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() != 200) {
+                    throw new IOException("Route request failed: " + response.statusCode() + " - " + response.body());
+                }
+
+                JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+                List<Route> parsedRoutes = parseRoutes(root, from, to);
+                if (!parsedRoutes.isEmpty()) {
+                    Route r = parsedRoutes.get(0);
+                    List<LatLng> allPoints = new ArrayList<>();
+                    allPoints.add(from);
+                    allPoints.addAll(waypoints);
+                    allPoints.add(to);
+                    return new Route(from, to, r.getPolyline(), allPoints, r.getDistanceMeters(), r.getDurationSeconds());
+                }
+            } catch (IOException e) {
+                lastException = e;
+                Logger.error("ROUTE", "Route API failed at " + baseUrl + ": " + e.getMessage());
+            }
+        }
+        throw lastException != null ? lastException : new IOException("Route request failed");
+    }
+
+    private List<Route> parseRoutes(JsonObject root, LatLng from, LatLng to) throws IOException {
         List<Route> routeOptions = new ArrayList<>();
 
         // ORS returns GeoJSON: features -> each feature has geometry.coordinates and properties.segments
@@ -177,12 +233,6 @@ public class RouteService {
             throw new IOException("No route returned");
         }
 
-        routeOptions.sort(Comparator
-                .comparingDouble(Route::getDurationSeconds)
-                .thenComparingDouble(Route::getDistanceMeters));
-        if (routeOptions.size() > 3) {
-            return new ArrayList<>(routeOptions.subList(0, 3));
-        }
         return routeOptions;
     }
 }

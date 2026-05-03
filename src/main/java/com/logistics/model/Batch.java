@@ -23,11 +23,15 @@ public class Batch implements Serializable {
     private BatchStatus status;
 
     @Column(name = "shipper_id")
-    private int shipperId;
+    private Integer shipperId;
 
+    public int getShipperId() {
+        return shipperId == null ? 0 : shipperId;
+    }
 
-
-
+    public void setShipperId(int shipperId) {
+        this.shipperId = shipperId == 0 ? null : shipperId;
+    }
 
     public int getOrderCount() {
         return orders.size();
@@ -38,6 +42,5 @@ public class Batch implements Serializable {
                 .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
                 .count();
     }
-
 
 }

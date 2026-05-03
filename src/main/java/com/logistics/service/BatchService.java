@@ -53,7 +53,7 @@ public class BatchService {
 
         Batch batch = new Batch();
         batch.setStatus(BatchStatus.CREATED);
-        batch.setOrders(persistedOrders);
+        batch.setOrders(new ArrayList<>()); // Avoid detached entity exception
 
         Batch saved = batchRepository.save(batch);
         if (saved == null) {

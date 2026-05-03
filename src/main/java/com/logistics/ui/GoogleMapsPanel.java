@@ -154,6 +154,17 @@ public class GoogleMapsPanel extends BorderPane {
             polylineArray.add(pointObject);
         }
         routeObject.add("polyline", polylineArray);
+        JsonArray waypointsArray = new JsonArray();
+        if (route.getWaypoints() != null) {
+            for (LatLng wp : route.getWaypoints()) {
+                JsonObject pointObject = new JsonObject();
+                pointObject.addProperty("lat", wp.latitude());
+                pointObject.addProperty("lng", wp.longitude());
+                waypointsArray.add(pointObject);
+            }
+        }
+        routeObject.add("waypoints", waypointsArray);
+
         routeObject.addProperty("fromLat", route.getFrom().latitude());
         routeObject.addProperty("fromLng", route.getFrom().longitude());
         routeObject.addProperty("toLat", route.getTo().latitude());

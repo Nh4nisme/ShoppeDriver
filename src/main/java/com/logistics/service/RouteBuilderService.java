@@ -10,7 +10,7 @@ import java.util.List;
 
 public class RouteBuilderService {
     private static final RouteBuilderService instance = new RouteBuilderService();
-    private static final double ORDER_SEARCH_RADIUS_KM = 5.0;
+    private static final double ORDER_SEARCH_RADIUS_KM = 0.05;
 
     private final GeoService geoService;
     private final RouteService routeService;
