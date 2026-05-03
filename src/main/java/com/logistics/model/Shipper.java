@@ -30,8 +30,6 @@ public class Shipper implements Serializable {
 
     private boolean active;
 
-
-
     public double distanceTo(double x, double y) {
         double dx = currentX - x;
         double dy = currentY - y;

@@ -68,6 +68,7 @@ public class BatchService {
         }
 
         saved.setOrders(persistedOrders);
+        ShipperTrackingService.getInstance().notifyBatchUpdated(saved);
         return saved;
     }
 }

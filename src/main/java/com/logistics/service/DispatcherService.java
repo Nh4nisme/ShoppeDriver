@@ -45,6 +45,8 @@ public class DispatcherService {
         if (!batchUpdated || !shipperUpdated) {
             throw new IllegalStateException("Assignment failed");
         }
+
+        ShipperTrackingService.getInstance().notifyBatchUpdated(parsedBatchId);
     }
 
     public boolean assignBatchToShipper(int batchId, int shipperId) {

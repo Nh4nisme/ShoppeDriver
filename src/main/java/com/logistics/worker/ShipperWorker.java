@@ -2,6 +2,7 @@ package com.logistics.worker;
 
 import com.logistics.model.*;
 import com.logistics.service.ShipperTrackingService;
+import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import com.logistics.util.LocationUtil;
 
@@ -165,7 +166,8 @@ public class ShipperWorker implements Runnable {
     }
 
     private void notifyListeners() {
-        listeners.forEach(DataChangeListener::onDataChanged);
+        DataChangeEvent event = DataChangeEvent.generic();
+        listeners.forEach(listener -> listener.onDataChanged(event));
     }
 
     public void stop() {

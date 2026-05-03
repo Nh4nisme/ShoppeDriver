@@ -1,6 +1,6 @@
 package com.logistics.util;
 
 public interface DataChangeListener {
-    void onDataChanged();
+    void onDataChanged(DataChangeEvent event);
 }
 

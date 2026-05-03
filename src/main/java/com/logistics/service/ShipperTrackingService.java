@@ -7,6 +7,7 @@ import com.logistics.repository.BatchRepository;
 import com.logistics.repository.BatchRepositoryImpl;
 import com.logistics.repository.ShipperRepository;
 import com.logistics.repository.ShipperRepositoryImpl;
+import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import com.logistics.util.Logger;
 
@@ -32,22 +33,12 @@ public class ShipperTrackingService {
     }
 
     public void start() {
+        if (running) {
+            Logger.log("SERVICE", "ShipperTrackingService da duoc khoi tao truoc do");
+            return;
+        }
         running = true;
-        Logger.log("SERVICE", "ShipperTrackingService bat dau chay");
-
-        Thread pollingThread = new Thread(() -> {
-            while (running) {
-                try {
-                    Thread.sleep(2000);
-                    notifyListeners();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        });
-        pollingThread.setDaemon(true);
-        pollingThread.start();
+        Logger.log("SERVICE", "ShipperTrackingService khoi tao o che do event-driven");
     }
 
     public void stop() {
@@ -66,7 +57,11 @@ public class ShipperTrackingService {
     public void updateShipperLocation(int shipperId, double x, double y) {
         shipperRepository.updateLocation(shipperId, x, y);
         Logger.log("TRACKING", "Cap nhat vi tri shipper " + shipperId + " -> (" + x + "," + y + ")");
-        notifyListeners();
+        notifyListeners(new DataChangeEvent(
+                DataChangeEvent.SHIPPER_LOCATION_UPDATED,
+                shipperId,
+                new double[]{x, y}
+        ));
     }
 
     public List<Batch> getAllBatches() {
@@ -103,13 +98,25 @@ public class ShipperTrackingService {
     }
 
     public void refreshData() {
-        notifyListeners();
+        notifyListeners(DataChangeEvent.generic());
     }
 
-    private void notifyListeners() {
+    public void notifyBatchUpdated(int batchId) {
+        notifyBatchUpdated(batchRepository.findById(batchId));
+    }
+
+    public void notifyBatchUpdated(Batch batch) {
+        if (batch == null) {
+            notifyListeners(new DataChangeEvent(DataChangeEvent.BATCH_UPDATED, 0, null));
+            return;
+        }
+        notifyListeners(new DataChangeEvent(DataChangeEvent.BATCH_UPDATED, batch.getId(), batch));
+    }
+
+    private void notifyListeners(DataChangeEvent event) {
         listeners.forEach(listener -> {
             try {
-                listener.onDataChanged();
+                listener.onDataChanged(event);
             } catch (Exception e) {
                 Logger.error("TRACKING", "Loi thong bao listener: " + e.getMessage());
             }

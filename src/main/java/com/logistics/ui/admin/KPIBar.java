@@ -1,6 +1,7 @@
 package com.logistics.ui.admin;
 
 import com.logistics.service.ShipperTrackingService;
+import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import javafx.geometry.Insets;
 import javafx.scene.layout.HBox;
@@ -38,7 +39,15 @@ public class KPIBar extends HBox implements DataChangeListener {
     }
 
     @Override
-    public void onDataChanged() {
+    public void onDataChanged(DataChangeEvent event) {
+        if (event == null) {
+            return;
+        }
+        if (!event.isType(DataChangeEvent.SHIPPER_LOCATION_UPDATED)
+                && !event.isType(DataChangeEvent.BATCH_UPDATED)
+                && !event.isType(DataChangeEvent.DATA_CHANGED)) {
+            return;
+        }
         Platform.runLater(this::updateKPIs);
     }
 
