@@ -8,7 +8,9 @@ import java.sql.SQLException;
  * Database connection utility for MariaDB
  */
 public class DBConnection {
-    private static final String URL = "jdbc:mariadb://localhost:3306/shoppe_driver";
+    private static final String URL = "jdbc:mariadb://"
+            + System.getProperty("db.host", "localhost")
+            + ":3306/shoppedriver";
     private static final String USER = "root";
     private static final String PASSWORD = "sapassword";
 

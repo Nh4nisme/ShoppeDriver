@@ -5,9 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * User model for authentication
- */
 @Entity
 @Table(name = "users")
 @Data
@@ -21,10 +18,4 @@ public class User {
     private String username;
     private String password;
     private String role;
-
-
-
-
-
-
 }

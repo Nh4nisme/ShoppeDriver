@@ -30,11 +30,14 @@ public class Shipper implements Serializable {
 
     private boolean active;
 
+    // Quan hệ 1-1 với bảng users
+    @OneToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
+
     public double distanceTo(double x, double y) {
         double dx = currentX - x;
         double dy = currentY - y;
         return Math.sqrt(dx * dx + dy * dy);
     }
-
-
 }

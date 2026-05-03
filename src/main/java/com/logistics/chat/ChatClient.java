@@ -17,7 +17,6 @@ import java.util.concurrent.BlockingQueue;
 
 public class ChatClient {
     private static ChatClient instance;
-
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 9999;
     private static final int RECONNECT_DELAY_MS = 5000;
