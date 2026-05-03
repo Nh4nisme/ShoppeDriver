@@ -74,29 +74,30 @@ public class BatchCreationPanel extends VBox {
         this.setPrefWidth(470);
         this.setMinWidth(470);
         this.setPrefHeight(340);
-        this.setStyle("-fx-border-color: #cccccc; -fx-border-width: 1 1 1 1; -fx-padding: 10;");
+        this.setStyle("-fx-background-color: #e2e8f0; -fx-padding: 15;");
 
         Label titleLabel = new Label("Tao Batch Moi (Address-Based)");
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #000000;");
 
         VBox inputBox = createInputSection();
         VBox orderBox = createOrderSection();
-        SplitPane splitPane = new SplitPane(inputBox, orderBox);
-        splitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        splitPane.setDividerPositions(0.48);
-        VBox.setVgrow(splitPane, Priority.ALWAYS);
+        VBox contentBox = new VBox(10, inputBox, orderBox);
+        ScrollPane mainScroll = new ScrollPane(contentBox);
+        mainScroll.setFitToWidth(true);
+        mainScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        VBox.setVgrow(mainScroll, Priority.ALWAYS);
 
-        this.getChildren().addAll(titleLabel, splitPane);
+        this.getChildren().addAll(titleLabel, mainScroll);
         this.setSpacing(10);
     }
 
     private VBox createInputSection() {
         VBox box = new VBox(14);
-        box.setStyle("-fx-background-color: #f7f9fc; -fx-border-color: #d9e1ec; -fx-border-width: 1; -fx-padding: 14;");
+        box.setStyle("-fx-background-color: #e9ecef; -fx-border-color: #ced4da; -fx-border-width: 1; -fx-padding: 14; -fx-background-radius: 5; -fx-border-radius: 5;");
 
         Label helperLabel = new Label("Nhap dia chi theo tung phan. Khi go chu, he thong se goi y dia chi de dien nhanh.");
         helperLabel.setWrapText(true);
-        helperLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #526277;");
+        helperLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
 
         VBox fromAddressBox = createAddressComponentBox("Diem bat dau", true);
         VBox toAddressBox = createAddressComponentBox("Diem ket thuc", false);
@@ -124,11 +125,11 @@ public class BatchCreationPanel extends VBox {
         box.setStyle("-fx-border-color: #d7deea; -fx-border-width: 1; -fx-padding: 12; -fx-background-color: #ffffff;");
 
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #243447;");
+        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #000000;");
 
         Label subtitleLabel = new Label("Co the nhap ten duong, phuong, quan hoac thanh pho. Chon mot goi y de dien tu dong.");
         subtitleLabel.setWrapText(true);
-        subtitleLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #6b7a90;");
+        subtitleLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
 
         GridPane formGrid = new GridPane();
         formGrid.setHgap(10);
@@ -190,7 +191,7 @@ public class BatchCreationPanel extends VBox {
         label.setMinWidth(110);
         label.setPrefWidth(110);
         label.setWrapText(true);
-        label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #41536a;");
+        label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #000000;");
         return label;
     }
 
@@ -204,16 +205,17 @@ public class BatchCreationPanel extends VBox {
 
     private VBox createOrderSection() {
         VBox box = new VBox(8);
-        box.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 10;");
+        box.setStyle("-fx-background-color: #e9ecef; -fx-border-color: #ced4da; -fx-border-width: 1; -fx-padding: 10; -fx-background-radius: 5; -fx-border-radius: 5;");
 
         Label sectionLabel = new Label("Orders Along Route");
-        sectionLabel.setStyle("-fx-font-weight: bold;");
+        sectionLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #000000;");
 
         routeSummaryLabel = new Label("Nhap dia chi de preview route va load orders...");
+        routeSummaryLabel.setStyle("-fx-text-fill: #000000;");
         routeSummaryLabel.setWrapText(true);
 
         routeListLabel = new Label("Chua co tuyen duong de chon.");
-        routeListLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #526277;");
+        routeListLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
 
         routeListBox = new VBox(6);
         routeListBox.setPadding(new Insets(2, 0, 4, 0));
@@ -229,7 +231,7 @@ public class BatchCreationPanel extends VBox {
         clearSelectionButton.setOnAction(e -> setAllSelections(false));
 
         selectionLabel = new Label("0 selected");
-        selectionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #555;");
+        selectionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
         selectionActions.getChildren().addAll(selectAllButton, clearSelectionButton, selectionLabel);
 
@@ -242,7 +244,7 @@ public class BatchCreationPanel extends VBox {
         orderScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
 
         statusLabel = new Label("San sang");
-        statusLabel.setStyle("-fx-font-size: 10px;");
+        statusLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
         box.getChildren().addAll(sectionLabel, routeSummaryLabel, routeListLabel, routeListBox, selectionActions, orderScroll, statusLabel);
         VBox.setVgrow(orderScroll, Priority.ALWAYS);
@@ -436,11 +438,12 @@ public class BatchCreationPanel extends VBox {
 
         VBox content = new VBox(3);
         Label idLabel = new Label("Order #" + order.getId());
-        idLabel.setStyle("-fx-font-weight: bold;");
+        idLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #000000;");
 
         Label addressLabel = new Label(order.getAddress() == null || order.getAddress().isBlank()
                 ? "(No address)"
                 : order.getAddress());
+        addressLabel.setStyle("-fx-text-fill: #000000;");
         addressLabel.setWrapText(true);
 
         Label metaLabel = new Label(
@@ -448,7 +451,7 @@ public class BatchCreationPanel extends VBox {
                         + " | (" + String.format("%.5f", order.getLatitude())
                         + ", " + String.format("%.5f", order.getLongitude()) + ")"
         );
-        metaLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        metaLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
         content.getChildren().addAll(idLabel, addressLabel, metaLabel);
         HBox.setHgrow(content, Priority.ALWAYS);
@@ -463,7 +466,7 @@ public class BatchCreationPanel extends VBox {
     private void renderEmptyOrders(String message) {
         orderListBox.getChildren().clear();
         Label emptyLabel = new Label(message);
-        emptyLabel.setStyle("-fx-text-fill: #888;");
+        emptyLabel.setStyle("-fx-text-fill: #000000;");
         orderListBox.getChildren().add(emptyLabel);
         selectionLabel.setText("0 selected");
         createButton.setDisable(true);
@@ -568,11 +571,11 @@ public class BatchCreationPanel extends VBox {
             Label title = new Label(suggestion.getDisplayText());
             title.setWrapText(true);
             title.setMaxWidth(380);
-            title.setStyle("-fx-font-size: 12px; -fx-font-weight: bold;");
+            title.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #000000;");
 
             Label meta = new Label(buildSuggestionMeta(suggestion));
             meta.setWrapText(true);
-            meta.setStyle("-fx-font-size: 10px; -fx-text-fill: #607086;");
+            meta.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
             itemBox.getChildren().addAll(title, meta);
 
@@ -695,13 +698,13 @@ public class BatchCreationPanel extends VBox {
         card.setOnMouseClicked(event -> selectRoute(index));
 
         Label title = new Label("Route " + (index + 1));
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        title.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #000000;");
 
         Label meta = new Label(formatRouteMeta(route));
-        meta.setStyle("-fx-font-size: 11px; -fx-text-fill: #526277;");
+        meta.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
 
         Label hint = new Label(selected ? "Dang duoc chon" : "Nhan de chon tuyen nay");
-        hint.setStyle("-fx-font-size: 10px; -fx-text-fill: " + (selected ? "#1d70b8" : "#77869b") + ";");
+        hint.setStyle("-fx-font-size: 10px; -fx-text-fill: " + (selected ? "#1d70b8" : "#000000") + ";");
 
         card.getChildren().addAll(title, meta, hint);
         return card;

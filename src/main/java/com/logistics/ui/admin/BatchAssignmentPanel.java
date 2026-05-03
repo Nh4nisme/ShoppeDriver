@@ -29,20 +29,24 @@ public class BatchAssignmentPanel extends VBox {
         this.dispatcherService = DispatcherService.getInstance();
         this.trackingService = ShipperTrackingService.getInstance();
         this.setPrefHeight(350);
-        this.setStyle("-fx-border-color: #cccccc; -fx-border-width: 1 1 1 1; -fx-padding: 10;");
+        this.setStyle("-fx-background-color: #e2e8f0; -fx-padding: 15;");
 
         // Title
         Label titleLabel = new Label("Gán Batch cho Shipper (User-Driven)");
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #000000;");
 
         // Main content
         HBox contentBox = createContentBox();
+        ScrollPane mainScroll = new ScrollPane(contentBox);
+        mainScroll.setFitToWidth(true);
+        mainScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        VBox.setVgrow(mainScroll, Priority.ALWAYS);
 
         // Status label
         statusLabel = new Label("Chọn batch và shipper để gán");
-        statusLabel.setStyle("-fx-font-size: 10px;");
+        statusLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
-        this.getChildren().addAll(titleLabel, contentBox, statusLabel);
+        this.getChildren().addAll(titleLabel, mainScroll, statusLabel);
         this.setSpacing(10);
 
         // Refresh batches and shippers
@@ -67,10 +71,10 @@ public class BatchAssignmentPanel extends VBox {
 
     private VBox createBatchSection() {
         VBox box = new VBox(8);
-        box.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 8; -fx-background-color: #f9f9f9;");
+        box.setStyle("-fx-background-color: #e9ecef; -fx-border-color: #ced4da; -fx-border-width: 1; -fx-padding: 10; -fx-background-radius: 5; -fx-border-radius: 5;");
 
         Label label = new Label("Batch (Chờ Gán)");
-        label.setStyle("-fx-font-weight: bold; -fx-font-size: 11px;");
+        label.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #000000;");
 
         batchListBox = new VBox(5);
         batchListBox.setPadding(new Insets(5));
@@ -91,10 +95,10 @@ public class BatchAssignmentPanel extends VBox {
 
     private VBox createShipperSection() {
         VBox box = new VBox(8);
-        box.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 8; -fx-background-color: #f9f9f9;");
+        box.setStyle("-fx-background-color: #e9ecef; -fx-border-color: #ced4da; -fx-border-width: 1; -fx-padding: 10; -fx-background-radius: 5; -fx-border-radius: 5;");
 
         Label label = new Label("Shipper (Sẵn Sàng)");
-        label.setStyle("-fx-font-weight: bold; -fx-font-size: 11px;");
+        label.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #000000;");
 
         shipperListBox = new VBox(5);
         shipperListBox.setPadding(new Insets(5));
@@ -128,7 +132,7 @@ public class BatchAssignmentPanel extends VBox {
 
         if (createdBatches.isEmpty()) {
             Label emptyLabel = new Label("Không có batch chờ gán");
-            emptyLabel.setStyle("-fx-text-fill: #999;");
+            emptyLabel.setStyle("-fx-text-fill: #000000;");
             batchListBox.getChildren().add(emptyLabel);
             return;
         }
@@ -146,7 +150,7 @@ public class BatchAssignmentPanel extends VBox {
 
         if (shippers.isEmpty()) {
             Label emptyLabel = new Label("Không có shipper sẵn sàng");
-            emptyLabel.setStyle("-fx-text-fill: #999;");
+            emptyLabel.setStyle("-fx-text-fill: #000000;");
             shipperListBox.getChildren().add(emptyLabel);
             return;
         }
@@ -163,11 +167,11 @@ public class BatchAssignmentPanel extends VBox {
         card.setAlignment(Pos.CENTER_LEFT);
 
         Label idLabel = new Label("Batch #" + batch.getId());
-        idLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px;");
+        idLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #000000;");
         idLabel.setPrefWidth(70);
 
         Label countLabel = new Label(batch.getOrderCount() + " đơn");
-        countLabel.setStyle("-fx-font-size: 10px;");
+        countLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -185,11 +189,11 @@ public class BatchAssignmentPanel extends VBox {
         card.setAlignment(Pos.CENTER_LEFT);
 
         Label nameLabel = new Label(shipper.getName());
-        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px;");
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #000000;");
         nameLabel.setPrefWidth(80);
 
         Label locationLabel = new Label("(" + String.format("%.1f", shipper.getCurrentX()) + ", " + String.format("%.1f", shipper.getCurrentY()) + ")");
-        locationLabel.setStyle("-fx-font-size: 9px; -fx-text-fill: #666;");
+        locationLabel.setStyle("-fx-font-size: 9px; -fx-text-fill: #000000;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
