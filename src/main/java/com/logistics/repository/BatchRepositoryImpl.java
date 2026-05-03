@@ -2,11 +2,15 @@ package com.logistics.repository;
 
 import com.logistics.model.Batch;
 import com.logistics.model.BatchStatus;
+import com.logistics.model.Order;
+import com.logistics.model.OrderStatus;
 import com.logistics.util.EntityManagerUtil;
 import com.logistics.util.Logger;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.Query;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,6 +37,51 @@ public class BatchRepositoryImpl implements BatchRepository {
                 em.getTransaction().rollback();
             }
             Logger.error("DATABASE", "Error saving batch: " + e.getMessage());
+            return null;
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public Batch createWithPendingOrders(List<Integer> orderIds) {
+        EntityManager em = EntityManagerUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            Logger.log("DATABASE", "Creating batch with " + orderIds.size() + " pending order(s)");
+
+            List<Order> orders = new ArrayList<>();
+            for (Integer orderId : orderIds) {
+                Order order = em.find(Order.class, orderId, LockModeType.PESSIMISTIC_WRITE);
+                if (order == null) {
+                    throw new IllegalStateException("Order not found: " + orderId);
+                }
+                if (order.getStatus() != OrderStatus.PENDING) {
+                    throw new IllegalStateException("Order is not available: " + orderId);
+                }
+                orders.add(order);
+            }
+
+            Batch batch = new Batch();
+            batch.setStatus(BatchStatus.CREATED);
+            batch.setOrders(new ArrayList<>());
+            em.persist(batch);
+
+            for (Order order : orders) {
+                order.setBatch(batch);
+                order.setStatus(OrderStatus.DELIVERING);
+                batch.getOrders().add(order);
+            }
+
+            em.getTransaction().commit();
+            Logger.log("BATCH", "Created batch transactionally: ID=" + batch.getId()
+                    + ", orders=" + orders.size());
+            return batch;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            Logger.error("DATABASE", "Error creating batch with orders: " + e.getMessage());
             return null;
         } finally {
             em.close();

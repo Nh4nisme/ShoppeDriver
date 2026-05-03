@@ -9,9 +9,12 @@ import com.logistics.ui.GoogleMapsPanel;
 import com.logistics.util.Logger;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.CustomMenuItem;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class BatchCreationPanel extends VBox {
@@ -51,6 +55,7 @@ public class BatchCreationPanel extends VBox {
     private Button selectAllButton;
     private Button clearSelectionButton;
     private Button previewWaypointsButton;
+    private Button planBatchesButton;
     private TextField fromStreetField;
     private TextField fromNumberField;
     private TextField fromWardField;
@@ -108,13 +113,15 @@ public class BatchCreationPanel extends VBox {
         Button previewButton = new Button("Preview Route");
         Button loadButton = new Button("Load Orders");
         createButton = new Button("Create Batch");
+        planBatchesButton = new Button("Plan Batches");
         createButton.setDisable(true);
 
         previewButton.setOnAction(e -> previewRoute());
         loadButton.setOnAction(e -> loadOrders());
         createButton.setOnAction(e -> createBatch());
+        planBatchesButton.setOnAction(e -> confirmAndPlanBatches());
 
-        actionBox.getChildren().addAll(previewButton, loadButton, createButton);
+        actionBox.getChildren().addAll(previewButton, loadButton, createButton, planBatchesButton);
 
         box.getChildren().addAll(helperLabel, fromAddressBox, toAddressBox, actionBox);
         return box;
@@ -396,6 +403,189 @@ public class BatchCreationPanel extends VBox {
         }).start();
     }
 
+    private void confirmAndPlanBatches() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Xac nhan gom don");
+        alert.setHeaderText("Chay batch planning tu dong?");
+        alert.setContentText("He thong se gom cac order PENDING theo cum vi tri va tao batch moi.");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        planBatchesInBackground();
+    }
+
+    private void planBatchesInBackground() {
+        Route routeSnapshot = currentRoute;
+        List<Route> previewRoutesSnapshot = previewRoutes.isEmpty() && routeSnapshot != null
+                ? new ArrayList<>(List.of(routeSnapshot))
+                : new ArrayList<>(previewRoutes);
+        int selectedRouteIndexSnapshot = selectedRouteIndex < previewRoutesSnapshot.size() ? selectedRouteIndex : 0;
+
+        planBatchesButton.setDisable(true);
+        planBatchesButton.setText("Đang gom đơn...");
+        createButton.setDisable(true);
+        statusLabel.setText("Đang gom đơn...");
+        statusLabel.setStyle("-fx-text-fill: #FF9800;");
+        appLog("Dang gom don tu dong bang DBSCAN...");
+        Logger.log("BATCH_UI", "Batch planning bat dau");
+
+        Task<PlanningUiResult> task = new Task<>() {
+            @Override
+            protected PlanningUiResult call() {
+                BatchService.BatchPlanningResult planningResult = batchService.planBatches();
+                List<Route> plannedRoutes = buildRoutesForPlannedBatches(planningResult.batches());
+                List<Order> plannedOrders = planningResult.batches().stream()
+                        .flatMap(batch -> batch.getOrders().stream())
+                        .toList();
+                List<Order> refreshedOrders = plannedRoutes.isEmpty() && routeSnapshot != null
+                        ? orderService.findOrdersAlongRoute(routeSnapshot, ORDER_SEARCH_RADIUS_KM)
+                        : List.of();
+                return new PlanningUiResult(planningResult, plannedRoutes, plannedOrders, refreshedOrders);
+            }
+        };
+
+        task.setOnSucceeded(event -> {
+            PlanningUiResult uiResult = task.getValue();
+            BatchService.BatchPlanningResult planningResult = uiResult.planningResult();
+            if (!uiResult.plannedRoutes().isEmpty()) {
+                previewRoutes = new ArrayList<>(uiResult.plannedRoutes());
+                selectedRouteIndex = 0;
+                currentRoute = previewRoutes.getFirst();
+                renderRouteOptions();
+                GoogleMapsPanel.showRoutePreview(previewRoutes, selectedRouteIndex);
+                GoogleMapsPanel.showPreviewOrders(uiResult.plannedOrders());
+                renderPlannedOrders(uiResult.plannedOrders());
+            } else if (routeSnapshot != null) {
+                currentRoute = routeSnapshot;
+                previewRoutes = previewRoutesSnapshot;
+                selectedRouteIndex = selectedRouteIndexSnapshot;
+                GoogleMapsPanel.showRoutePreview(previewRoutesSnapshot, selectedRouteIndexSnapshot);
+                GoogleMapsPanel.showPreviewOrders(uiResult.refreshedOrders());
+                updateLoadedOrders(uiResult.refreshedOrders());
+            } else {
+                clearLoadedOrdersAfterCreate();
+            }
+
+            String message = "Đã tạo " + planningResult.batchCount()
+                    + " batch từ " + planningResult.batchedOrders()
+                    + " đơn. Còn " + planningResult.unbatchedOrders() + " đơn chưa gom.";
+            statusLabel.setText(message);
+            statusLabel.setStyle("-fx-text-fill: #4CAF50;");
+            routeSummaryLabel.setText(message);
+            appLog(message);
+            Logger.log("BATCH_UI", "Batch planning thanh cong: " + message);
+            resetPlanBatchesButton();
+        });
+
+        task.setOnFailed(event -> {
+            Throwable ex = task.getException();
+            String detail = ex == null ? "Unknown error" : ex.getMessage();
+            Logger.error("BATCH_UI", "Batch planning failed: " + detail);
+            showError("Batch planning failed");
+            appLog("Batch planning failed");
+            resetPlanBatchesButton();
+            updateSelectionState();
+        });
+
+        Thread thread = new Thread(task, "batch-planning-worker");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private List<Route> buildRoutesForPlannedBatches(List<Batch> batches) {
+        List<Route> routes = new ArrayList<>();
+        for (Batch batch : batches) {
+            List<Order> orders = batch.getOrders().stream()
+                    .filter(this::hasRenderableCoordinate)
+                    .toList();
+            if (orders.size() < 2) {
+                continue;
+            }
+
+            List<Order> sortedOrders = sortOrdersByNearestNeighbor(orders);
+            List<LatLng> points = sortedOrders.stream()
+                    .map(order -> new LatLng(order.getLatitude(), order.getLongitude()))
+                    .toList();
+            LatLng from = points.getFirst();
+            LatLng to = points.getLast();
+            List<LatLng> waypoints = points.size() > 2
+                    ? points.subList(1, points.size() - 1)
+                    : List.of();
+
+            try {
+                Route route = routeBuilderService.getRouteService().getRouteWithWaypoints(from, to, waypoints);
+                routes.add(route);
+                Logger.log("BATCH_UI", "Da tao route cho batch " + batch.getId()
+                        + " voi " + sortedOrders.size() + " order");
+            } catch (Exception ex) {
+                Logger.error("BATCH_UI", "Khong tao duoc route cho batch " + batch.getId()
+                        + ": " + ex.getMessage());
+                routes.add(createFallbackRoute(points));
+            }
+        }
+        return routes;
+    }
+
+    private Route createFallbackRoute(List<LatLng> points) {
+        double distanceMeters = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            distanceMeters += haversineMeters(points.get(i), points.get(i + 1));
+        }
+        return new Route(points.getFirst(), points.getLast(), points, points, distanceMeters, 0.0);
+    }
+
+    private double haversineMeters(LatLng first, LatLng second) {
+        double earthRadiusMeters = 6_371_000.0;
+        double dLat = Math.toRadians(second.latitude() - first.latitude());
+        double dLng = Math.toRadians(second.longitude() - first.longitude());
+        double lat1 = Math.toRadians(first.latitude());
+        double lat2 = Math.toRadians(second.latitude());
+        double haversine = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+        return earthRadiusMeters * c;
+    }
+
+    private List<Order> sortOrdersByNearestNeighbor(List<Order> orders) {
+        List<Order> remaining = new ArrayList<>(orders);
+        remaining.sort((first, second) -> Integer.compare(first.getId(), second.getId()));
+
+        List<Order> sorted = new ArrayList<>();
+        Order current = remaining.removeFirst();
+        sorted.add(current);
+
+        while (!remaining.isEmpty()) {
+            Order from = current;
+            Order nearest = remaining.stream()
+                    .min((first, second) -> Double.compare(distanceSquared(from, first), distanceSquared(from, second)))
+                    .orElseThrow();
+            remaining.remove(nearest);
+            sorted.add(nearest);
+            current = nearest;
+        }
+        return sorted;
+    }
+
+    private double distanceSquared(Order first, Order second) {
+        double dLat = first.getLatitude() - second.getLatitude();
+        double dLng = first.getLongitude() - second.getLongitude();
+        return dLat * dLat + dLng * dLng;
+    }
+
+    private boolean hasRenderableCoordinate(Order order) {
+        return order != null
+                && order.getLatitude() >= 8.0 && order.getLatitude() <= 24.0
+                && order.getLongitude() >= 102.0 && order.getLongitude() <= 110.0;
+    }
+
+    private void resetPlanBatchesButton() {
+        planBatchesButton.setText("Plan Batches");
+        planBatchesButton.setDisable(false);
+    }
+
     private boolean isInvalidAddressInput() {
         String fromCity = fromCityField.getText();
         String toCity = toCityField.getText();
@@ -431,6 +621,30 @@ public class BatchCreationPanel extends VBox {
         updateSelectionState();
         statusLabel.setText("Load orders thanh cong");
         statusLabel.setStyle("-fx-text-fill: #4CAF50;");
+    }
+
+    private void renderPlannedOrders(List<Order> orders) {
+        loadedOrders = new ArrayList<>();
+        orderSelections.clear();
+        orderListBox.getChildren().clear();
+
+        if (orders.isEmpty()) {
+            renderEmptyOrders("Da tao batch nhung khong co order co toa do hop le de ve route.");
+            return;
+        }
+
+        for (Order order : orders) {
+            CheckBox checkBox = new CheckBox();
+            checkBox.setDisable(true);
+            checkBox.setSelected(true);
+            orderListBox.getChildren().add(createOrderItem(order, checkBox));
+        }
+
+        selectionLabel.setText(orders.size() + " planned");
+        createButton.setDisable(true);
+        selectAllButton.setDisable(true);
+        clearSelectionButton.setDisable(true);
+        if (previewWaypointsButton != null) previewWaypointsButton.setDisable(true);
     }
 
     private HBox createOrderItem(Order order, CheckBox checkBox) {
@@ -749,6 +963,14 @@ public class BatchCreationPanel extends VBox {
             this(sectionName, streetField, numberField, wardField, districtField, cityField, new ContextMenu(),
                     new PauseTransition(Duration.millis(300)));
         }
+    }
+
+    private record PlanningUiResult(
+            BatchService.BatchPlanningResult planningResult,
+            List<Route> plannedRoutes,
+            List<Order> plannedOrders,
+            List<Order> refreshedOrders
+    ) {
     }
 
     private void renderRouteOptions() {

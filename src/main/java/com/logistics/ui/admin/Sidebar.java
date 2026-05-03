@@ -2,12 +2,19 @@ package com.logistics.ui.admin;
 
 import com.logistics.model.Batch;
 import com.logistics.model.BatchStatus;
+import com.logistics.model.LatLng;
 import com.logistics.model.Order;
+import com.logistics.model.Route;
+import com.logistics.repository.OrderRepository;
+import com.logistics.repository.OrderRepositoryImpl;
+import com.logistics.service.RouteService;
 import com.logistics.service.ShipperTrackingService;
+import com.logistics.ui.GoogleMapsPanel;
 import com.logistics.util.DataChangeEvent;
 import com.logistics.util.DataChangeListener;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -20,19 +27,28 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Sidebar extends VBox implements DataChangeListener {
+    private final OrderRepository orderRepository;
+    private final RouteService routeService;
     private final VBox batchList;
+    private final VBox unbatchedOrderList;
     private final ScrollPane scrollPane;
     private final BatchAssignmentPanel assignmentPanel;
     private final FollowBatchPanel followBatchPanel;
     private final TabPane tabPane;
     private final VBox batchDetailBox;
     private final ComboBox<String> batchFilter;
+    private final Label batchRouteStatusLabel;
+    private final Label unbatchedStatusLabel;
     private Integer selectedBatchId;
+    private int routePreviewRequestId = 0;
 
     public Sidebar() {
+        this.orderRepository = new OrderRepositoryImpl();
+        this.routeService = RouteService.getInstance();
         this.setPrefWidth(500);
         this.setMinWidth(500);
         this.setStyle("-fx-background-color: #ecf0f1;");
@@ -84,19 +100,39 @@ public class Sidebar extends VBox implements DataChangeListener {
         batchDetailBox.setStyle("-fx-border-color: #cccccc; -fx-border-width: 1; -fx-background-color: #ffffff;");
         renderBatchDetail(null);
 
+        this.batchRouteStatusLabel = new Label("Chon batch de xem route tren map.");
+        batchRouteStatusLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #555;");
+
         HBox controlsBox = createControlsBox();
 
-        listContent.getChildren().addAll(batchFilter, scrollPane, batchDetailBox, controlsBox);
+        listContent.getChildren().addAll(batchFilter, scrollPane, batchDetailBox, batchRouteStatusLabel, controlsBox);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         listTab.setContent(listContent);
 
-        tabPane.getTabs().addAll(creationTab, assignmentTab, followTab, chatTab, listTab);
+        Tab unbatchedTab = new Tab();
+        unbatchedTab.setText("Don chua gom");
+        VBox unbatchedContent = new VBox(10);
+        unbatchedContent.setPadding(new Insets(10));
+        this.unbatchedOrderList = new VBox(8);
+        ScrollPane unbatchedScrollPane = new ScrollPane(unbatchedOrderList);
+        unbatchedScrollPane.setFitToWidth(true);
+        unbatchedScrollPane.setPrefHeight(420);
+        this.unbatchedStatusLabel = new Label("Danh sach order PENDING chua nam trong batch.");
+        unbatchedStatusLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #555;");
+        Button refreshUnbatchedButton = new Button("Refresh");
+        refreshUnbatchedButton.setOnAction(e -> updateUnbatchedOrderList());
+        unbatchedContent.getChildren().addAll(unbatchedStatusLabel, unbatchedScrollPane, refreshUnbatchedButton);
+        VBox.setVgrow(unbatchedScrollPane, Priority.ALWAYS);
+        unbatchedTab.setContent(unbatchedContent);
+
+        tabPane.getTabs().addAll(creationTab, assignmentTab, followTab, chatTab, listTab, unbatchedTab);
 
         this.getChildren().addAll(titleLabel, tabPane);
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
         ShipperTrackingService.getInstance().addListener(this);
         updateBatchList();
+        updateUnbatchedOrderList();
     }
 
     private HBox createControlsBox() {
@@ -108,6 +144,7 @@ public class Sidebar extends VBox implements DataChangeListener {
         Button refreshButton = new Button("Refresh");
         refreshButton.setOnAction(e -> {
             updateBatchList();
+            updateUnbatchedOrderList();
             if (assignmentPanel != null) {
                 assignmentPanel.refresh();
             }
@@ -118,6 +155,8 @@ public class Sidebar extends VBox implements DataChangeListener {
         clearButton.setOnAction(e -> {
             selectedBatchId = null;
             renderBatchDetail(null);
+            GoogleMapsPanel.clearRoutePreview();
+            batchRouteStatusLabel.setText("Chon batch de xem route tren map.");
             updateBatchList();
         });
         clearButton.setPrefWidth(100);
@@ -136,7 +175,7 @@ public class Sidebar extends VBox implements DataChangeListener {
         }
         Platform.runLater(() -> {
             updateBatchList();
-
+            updateUnbatchedOrderList();
         });
     }
 
@@ -186,7 +225,9 @@ public class Sidebar extends VBox implements DataChangeListener {
                 + "; -fx-border-width: 2; -fx-border-radius: 3; -fx-background-color: #ffffff;");
         card.setOnMouseClicked(e -> {
             selectedBatchId = batch.getId();
-            renderBatchDetail(ShipperTrackingService.getInstance().getBatch(batch.getId()));
+            Batch selectedBatch = ShipperTrackingService.getInstance().getBatch(batch.getId());
+            renderBatchDetail(selectedBatch);
+            showBatchRouteOnMap(selectedBatch);
             updateBatchList();
         });
 
@@ -265,5 +306,150 @@ public class Sidebar extends VBox implements DataChangeListener {
 
         item.getChildren().addAll(top, addressLabel, coordsLabel);
         return item;
+    }
+
+    private void updateUnbatchedOrderList() {
+        unbatchedOrderList.getChildren().clear();
+        List<Order> pendingOrders = orderRepository.findByStatus(com.logistics.model.OrderStatus.PENDING);
+        unbatchedStatusLabel.setText("Con " + pendingOrders.size() + " order chua gom.");
+
+        if (pendingOrders.isEmpty()) {
+            Label emptyLabel = new Label("Khong co order chua gom.");
+            emptyLabel.setStyle("-fx-text-fill: #777;");
+            unbatchedOrderList.getChildren().add(emptyLabel);
+            return;
+        }
+
+        for (Order order : pendingOrders) {
+            VBox item = createOrderDetailItem(order);
+            item.setOnMouseClicked(event -> GoogleMapsPanel.showPreviewOrders(List.of(order)));
+            unbatchedOrderList.getChildren().add(item);
+        }
+    }
+
+    private void showBatchRouteOnMap(Batch batch) {
+        int requestId = ++routePreviewRequestId;
+        if (batch == null) {
+            GoogleMapsPanel.clearRoutePreview();
+            batchRouteStatusLabel.setText("Chon batch de xem route tren map.");
+            return;
+        }
+
+        List<Order> renderableOrders = batch.getOrders().stream()
+                .filter(this::hasRenderableCoordinate)
+                .toList();
+        GoogleMapsPanel.showPreviewOrders(renderableOrders);
+
+        if (renderableOrders.size() < 2) {
+            GoogleMapsPanel.showRoutePreview(List.of(), 0);
+            batchRouteStatusLabel.setText("Batch #" + batch.getId() + " khong du order co toa do de ve route.");
+            return;
+        }
+
+        batchRouteStatusLabel.setText("Dang ve route cho Batch #" + batch.getId() + "...");
+        Task<Route> task = new Task<>() {
+            @Override
+            protected Route call() {
+                return buildRouteForOrders(renderableOrders);
+            }
+        };
+
+        task.setOnSucceeded(event -> {
+            if (requestId != routePreviewRequestId) {
+                return;
+            }
+            Route route = task.getValue();
+            GoogleMapsPanel.showRoutePreview(List.of(route), 0);
+            GoogleMapsPanel.showPreviewOrders(renderableOrders);
+            batchRouteStatusLabel.setText("Dang xem route cua Batch #" + batch.getId()
+                    + " (" + renderableOrders.size() + " order).");
+        });
+
+        task.setOnFailed(event -> {
+            if (requestId != routePreviewRequestId) {
+                return;
+            }
+            GoogleMapsPanel.showRoutePreview(List.of(createFallbackRoute(toPoints(sortOrdersByNearestNeighbor(renderableOrders)))), 0);
+            GoogleMapsPanel.showPreviewOrders(renderableOrders);
+            batchRouteStatusLabel.setText("Khong goi duoc route API, dang ve duong noi tam cho Batch #" + batch.getId() + ".");
+        });
+
+        Thread thread = new Thread(task, "batch-list-route-preview");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private Route buildRouteForOrders(List<Order> orders) {
+        List<Order> sortedOrders = sortOrdersByNearestNeighbor(orders);
+        List<LatLng> points = toPoints(sortedOrders);
+        LatLng from = points.getFirst();
+        LatLng to = points.getLast();
+        List<LatLng> waypoints = points.size() > 2
+                ? points.subList(1, points.size() - 1)
+                : List.of();
+
+        try {
+            return routeService.getRouteWithWaypoints(from, to, waypoints);
+        } catch (Exception ex) {
+            return createFallbackRoute(points);
+        }
+    }
+
+    private List<Order> sortOrdersByNearestNeighbor(List<Order> orders) {
+        List<Order> remaining = new ArrayList<>(orders);
+        remaining.sort((first, second) -> Integer.compare(first.getId(), second.getId()));
+
+        List<Order> sorted = new ArrayList<>();
+        Order current = remaining.removeFirst();
+        sorted.add(current);
+
+        while (!remaining.isEmpty()) {
+            Order from = current;
+            Order nearest = remaining.stream()
+                    .min((first, second) -> Double.compare(distanceSquared(from, first), distanceSquared(from, second)))
+                    .orElseThrow();
+            remaining.remove(nearest);
+            sorted.add(nearest);
+            current = nearest;
+        }
+        return sorted;
+    }
+
+    private List<LatLng> toPoints(List<Order> orders) {
+        return orders.stream()
+                .map(order -> new LatLng(order.getLatitude(), order.getLongitude()))
+                .toList();
+    }
+
+    private Route createFallbackRoute(List<LatLng> points) {
+        double distanceMeters = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            distanceMeters += haversineMeters(points.get(i), points.get(i + 1));
+        }
+        return new Route(points.getFirst(), points.getLast(), points, points, distanceMeters, 0.0);
+    }
+
+    private double distanceSquared(Order first, Order second) {
+        double dLat = first.getLatitude() - second.getLatitude();
+        double dLng = first.getLongitude() - second.getLongitude();
+        return dLat * dLat + dLng * dLng;
+    }
+
+    private double haversineMeters(LatLng first, LatLng second) {
+        double earthRadiusMeters = 6_371_000.0;
+        double dLat = Math.toRadians(second.latitude() - first.latitude());
+        double dLng = Math.toRadians(second.longitude() - first.longitude());
+        double lat1 = Math.toRadians(first.latitude());
+        double lat2 = Math.toRadians(second.latitude());
+        double haversine = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+        return earthRadiusMeters * c;
+    }
+
+    private boolean hasRenderableCoordinate(Order order) {
+        return order != null
+                && order.getLatitude() >= 8.0 && order.getLatitude() <= 24.0
+                && order.getLongitude() >= 102.0 && order.getLongitude() <= 110.0;
     }
 }
