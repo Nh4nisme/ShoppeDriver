@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class BatchCreationPanel extends VBox {
-    private static final double ORDER_SEARCH_RADIUS_KM = 0.5;
+    private static final double ORDER_SEARCH_RADIUS_KM = 0.03;
 
     private final RouteBuilderService routeBuilderService;
     private final OrderService orderService;
@@ -50,6 +50,7 @@ public class BatchCreationPanel extends VBox {
     private Button createButton;
     private Button selectAllButton;
     private Button clearSelectionButton;
+    private Button previewWaypointsButton;
     private TextField fromStreetField;
     private TextField fromNumberField;
     private TextField fromWardField;
@@ -224,15 +225,18 @@ public class BatchCreationPanel extends VBox {
 
         selectAllButton = new Button("Select All");
         clearSelectionButton = new Button("Clear Selection");
+        previewWaypointsButton = new Button("Preview Route (Chon)");
         selectAllButton.setDisable(true);
         clearSelectionButton.setDisable(true);
+        previewWaypointsButton.setDisable(true);
         selectAllButton.setOnAction(e -> setAllSelections(true));
         clearSelectionButton.setOnAction(e -> setAllSelections(false));
+        previewWaypointsButton.setOnAction(e -> previewWaypointsRoute());
 
         selectionLabel = new Label("0 selected");
         selectionLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #000000;");
 
-        selectionActions.getChildren().addAll(selectAllButton, clearSelectionButton, selectionLabel);
+        selectionActions.getChildren().addAll(selectAllButton, clearSelectionButton, previewWaypointsButton, selectionLabel);
 
         orderListBox = new VBox(6);
         orderListBox.setPadding(new Insets(4));
@@ -470,6 +474,7 @@ public class BatchCreationPanel extends VBox {
         createButton.setDisable(true);
         selectAllButton.setDisable(true);
         clearSelectionButton.setDisable(true);
+        if (previewWaypointsButton != null) previewWaypointsButton.setDisable(true);
     }
 
     private void setAllSelections(boolean selected) {
@@ -489,7 +494,9 @@ public class BatchCreationPanel extends VBox {
     private void updateSelectionState() {
         long selectedCount = orderSelections.values().stream().filter(CheckBox::isSelected).count();
         selectionLabel.setText(selectedCount + " selected");
-        createButton.setDisable(selectedCount == 0 || loadedOrders.isEmpty());
+        boolean hasSelection = selectedCount > 0 && !loadedOrders.isEmpty();
+        createButton.setDisable(!hasSelection);
+        if (previewWaypointsButton != null) previewWaypointsButton.setDisable(!hasSelection);
     }
 
     private void clearLoadedOrdersAfterCreate() {
@@ -499,6 +506,77 @@ public class BatchCreationPanel extends VBox {
         selectedRouteIndex = 0;
         currentRoute = null;
         renderEmptyOrders("Batch da duoc tao. Load route de tim orders moi.");
+    }
+
+    private void previewWaypointsRoute() {
+        if (currentRoute == null) {
+            showError("Can preview route truoc khi tao batch");
+            return;
+        }
+        List<Order> selectedOrders = getSelectedOrders();
+        if (selectedOrders.isEmpty()) {
+            showError("Vui long chon it nhat 1 order");
+            return;
+        }
+
+        statusLabel.setText("Dang tao tuyen di qua cac don hang...");
+        statusLabel.setStyle("-fx-text-fill: #FF9800;");
+        appLog("Dang tao tuyen di qua cac don hang...");
+
+        new Thread(() -> {
+            try {
+                if (selectedOrders.size() < 2) {
+                    Platform.runLater(() -> showError("Can chon it nhat 2 don hang de tao duong di"));
+                    return;
+                }
+
+                // Sort orders by distance to the original route start to form a sequential path
+                LatLng routeStart = currentRoute.getFrom();
+                List<Order> sortedOrders = new ArrayList<>(selectedOrders);
+                sortedOrders.sort((o1, o2) -> {
+                    double dLat1 = o1.getLatitude() - routeStart.latitude();
+                    double dLng1 = o1.getLongitude() - routeStart.longitude();
+                    double dist1 = dLat1 * dLat1 + dLng1 * dLng1;
+
+                    double dLat2 = o2.getLatitude() - routeStart.latitude();
+                    double dLng2 = o2.getLongitude() - routeStart.longitude();
+                    double dist2 = dLat2 * dLat2 + dLng2 * dLng2;
+
+                    return Double.compare(dist1, dist2);
+                });
+
+                List<LatLng> waypoints = sortedOrders.stream()
+                        .map(o -> new LatLng(o.getLatitude(), o.getLongitude()))
+                        .toList();
+
+                LatLng from = waypoints.get(0);
+                LatLng to = waypoints.get(waypoints.size() - 1);
+                List<LatLng> intermediateWaypoints = waypoints.size() > 2 
+                        ? waypoints.subList(1, waypoints.size() - 1) 
+                        : new ArrayList<>();
+
+                Route route = routeBuilderService.getRouteService().getRouteWithWaypoints(
+                        from, to, intermediateWaypoints);
+                Platform.runLater(() -> {
+                    currentRoute = route;
+                    previewRoutes = new ArrayList<>(List.of(route));
+                    selectedRouteIndex = 0;
+                    renderRouteOptions();
+                    GoogleMapsPanel.showRoutePreview(previewRoutes, selectedRouteIndex);
+                    GoogleMapsPanel.showPreviewOrders(loadedOrders);
+                    updateRouteSummary(route);
+                    statusLabel.setText("Preview waypoints route thanh cong");
+                    statusLabel.setStyle("-fx-text-fill: #4CAF50;");
+                    appLog("Preview waypoints route thanh cong");
+                });
+            } catch (Exception ex) {
+                Logger.error("BATCH_UI", "Preview waypoints route that bai: " + ex.getMessage());
+                Platform.runLater(() -> {
+                    showError("Khong tao duoc route di qua don hang: " + ex.getMessage());
+                    appLog("Preview waypoints route that bai");
+                });
+            }
+        }).start();
     }
 
     private void showError(String message) {

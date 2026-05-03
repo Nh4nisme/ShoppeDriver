@@ -187,17 +187,42 @@
             routeBadges.push(badge);
 
             if (selected) {
-                endpointMarkers.push(createMarker(route.fromLat, route.fromLng, {
-                    color: '#1b5e20',
-                    fillColor: '#43a047',
-                    radius: 9
-                }).addTo(map).bindTooltip('A - Start'));
+                if (route.waypoints && route.waypoints.length > 0) {
+                    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    route.waypoints.forEach((wp, wpIndex) => {
+                        const letter = alphabet[wpIndex % alphabet.length];
+                        let color = '#f39c12';
+                        let fillColor = '#f1c40f';
+                        let label = letter + ' - Waypoint';
+                        if (wpIndex === 0) {
+                            color = '#1b5e20';
+                            fillColor = '#43a047';
+                            label = letter + ' - Start';
+                        } else if (wpIndex === route.waypoints.length - 1) {
+                            color = '#b71c1c';
+                            fillColor = '#e53935';
+                            label = letter + ' - End';
+                        }
+                        
+                        endpointMarkers.push(createMarker(wp.lat, wp.lng, {
+                            color: color,
+                            fillColor: fillColor,
+                            radius: 9
+                        }).addTo(map).bindTooltip(label));
+                    });
+                } else {
+                    endpointMarkers.push(createMarker(route.fromLat, route.fromLng, {
+                        color: '#1b5e20',
+                        fillColor: '#43a047',
+                        radius: 9
+                    }).addTo(map).bindTooltip('A - Start'));
 
-                endpointMarkers.push(createMarker(route.toLat, route.toLng, {
-                    color: '#b71c1c',
-                    fillColor: '#e53935',
-                    radius: 9
-                }).addTo(map).bindTooltip('B - End'));
+                    endpointMarkers.push(createMarker(route.toLat, route.toLng, {
+                        color: '#b71c1c',
+                        fillColor: '#e53935',
+                        radius: 9
+                    }).addTo(map).bindTooltip('B - End'));
+                }
             }
         });
     }
