@@ -112,7 +112,6 @@ public class Sidebar extends VBox implements DataChangeListener {
             if (assignmentPanel != null) {
                 assignmentPanel.refresh();
             }
-            ShipperTrackingService.getInstance().refreshData();
         });
         refreshButton.setPrefWidth(100);
 
@@ -130,18 +129,14 @@ public class Sidebar extends VBox implements DataChangeListener {
 
     @Override
     public void onDataChanged(DataChangeEvent event) {
-        if (event == null) {
-            return;
-        }
-        if (!event.isType(DataChangeEvent.BATCH_UPDATED)
-                && !event.isType(DataChangeEvent.DATA_CHANGED)) {
+        if (event == null) return;
+
+        if (!event.isType(DataChangeEvent.BATCH_UPDATED)) {
             return;
         }
         Platform.runLater(() -> {
             updateBatchList();
-            if (assignmentPanel != null) {
-                assignmentPanel.refresh();
-            }
+
         });
     }
 

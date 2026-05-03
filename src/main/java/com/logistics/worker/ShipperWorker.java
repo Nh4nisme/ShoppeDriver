@@ -89,13 +89,13 @@ public class ShipperWorker implements Runnable {
             shipper.distanceTo(currentOrder.getX(), currentOrder.getY());
             currentOrder.setStatus(OrderStatus.COMPLETED);
             System.out.println("[ShipperWorker-" + shipper.getName() + "] Delivered: " + currentOrder);
-            
+
             ShipperTrackingService.getInstance().updateShipperLocation(shipper.getId(), currentOrder.getX(), currentOrder.getY());
             notifyListeners();
 
             // Move to next order
             currentOrder = null;
-            
+
             if (assignedOrders.isEmpty()) {
                 shipper.setStatus(ShipperStatus.IDLE);
                 autoMode = false;
@@ -111,23 +111,25 @@ public class ShipperWorker implements Runnable {
             double orderY = currentOrder.getY();
 
             if (LocationUtil.isCloseEnough(currentX, currentY, orderX, orderY)) {
-                // Reached order
                 currentOrder.setStatus(OrderStatus.COMPLETED);
                 System.out.println("[ShipperWorker-" + shipper.getName() + "] Delivered: " + currentOrder);
+
+                ShipperTrackingService.getInstance().notifyBatchUpdated(currentOrder.getBatch().getId());
+
                 currentOrder = null;
 
                 if (assignedOrders.isEmpty()) {
                     shipper.setStatus(ShipperStatus.IDLE);
                     autoMode = false;
                 }
-            } else {
-                // Move towards order
-                double[] newPos = LocationUtil.moveTowards(currentX, currentY, orderX, orderY);
-                shipper.distanceTo(newPos[0], newPos[1]);
-                ShipperTrackingService.getInstance().updateShipperLocation(shipper.getId(), newPos[0], newPos[1]);
-            }
 
-            notifyListeners();
+            } else {
+//                double[] newPos = LocationUtil.moveTowards(currentX, currentY, orderX, orderY);
+//                shipper.distanceTo(newPos[0], newPos[1]);
+//                ShipperTrackingService.getInstance()
+//                        .updateShipperLocation(shipper.getId(), newPos[0], newPos[1]);
+
+            }
         }
     }
 
