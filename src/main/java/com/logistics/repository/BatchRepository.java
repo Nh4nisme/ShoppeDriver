@@ -12,6 +12,8 @@ public interface BatchRepository {
 
     Batch save(Batch batch);
 
+    Batch createWithPendingOrders(List<Integer> orderIds);
+
     List<Batch> findByStatus(BatchStatus status);
 
     Batch findById(int batchId);
