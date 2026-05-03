@@ -97,9 +97,9 @@ public class ShipperTrackingService {
         Logger.log("TRACKING", "Xoa listener: " + listener.getClass().getSimpleName());
     }
 
-    public void refreshData() {
-        notifyListeners(DataChangeEvent.generic());
-    }
+//    public void refreshData() {
+//        notifyListeners(DataChangeEvent.generic());
+//    }
 
     public void notifyBatchUpdated(int batchId) {
         notifyBatchUpdated(batchRepository.findById(batchId));
