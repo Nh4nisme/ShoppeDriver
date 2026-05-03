@@ -25,4 +25,6 @@ public interface BatchRepository {
     Batch findByShipperAndStatus(int shipperId, BatchStatus status);
 
     List<Batch> findActiveByShipper(int shipperId);
+
+    boolean removeOrderFromBatch(int orderId);
 }

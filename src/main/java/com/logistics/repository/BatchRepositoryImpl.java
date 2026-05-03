@@ -200,4 +200,33 @@ public class BatchRepositoryImpl implements BatchRepository {
             em.close();
         }
     }
+
+    @Override
+    public boolean removeOrderFromBatch(int orderId) {
+        EntityManager em = EntityManagerUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            Logger.log("DATABASE", "Removing order " + orderId + " from batch");
+            Order order = em.find(Order.class, orderId, LockModeType.PESSIMISTIC_WRITE);
+            if (order != null) {
+                if (order.getBatch() != null) {
+                    order.getBatch().getOrders().remove(order);
+                }
+                order.setBatch(null);
+                order.setStatus(OrderStatus.PENDING);
+                em.getTransaction().commit();
+                return true;
+            }
+            em.getTransaction().rollback();
+            return false;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            Logger.error("DATABASE", "Error removing order from batch: " + e.getMessage());
+            return false;
+        } finally {
+            em.close();
+        }
+    }
 }
